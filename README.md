@@ -1,24 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ParkBus Booking Application
 
-## Getting Started
+A modern, full-stack booking application for sustainable bus travel to Canada's most beautiful destinations.
 
-First, run the development server:
+## 🚀 Quick Start
 
+### 1. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment Setup (Optional)
+The app works with mock data by default. To connect to a real Supabase database:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Copy the environment template:
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Get your Supabase credentials from your [Supabase Dashboard](https://supabase.com/dashboard)
+
+3. Update `.env.local` with your credentials:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+### 3. Run Development Server
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to see your application.
+
+## 🏗️ Project Structure
+
+```
+src/
+├── app/                 # Next.js App Router pages
+├── components/          # Reusable UI components  
+├── features/           # Domain-driven feature modules
+├── hooks/              # Custom React hooks
+├── lib/                # Utilities and configurations
+└── types/              # TypeScript type definitions
+```
+
+## ✨ Key Features
+
+- **🔍 Smart Search**: Intelligent location search with auto-complete
+- **📱 Responsive Design**: Mobile-first approach with beautiful UI
+- **⚡ Fast Performance**: Optimized for speed and user experience
+- **🎨 Modern UI**: Clean, intuitive interface following best practices
+- **🔒 Type Safe**: Full TypeScript implementation
+- **🌐 SEO Optimized**: Built for search engine discoverability
+
+## 🎯 Current Status
+
+**✅ Completed (Step 1)**
+- Project setup and architecture
+- TypeScript types and interfaces
+- Supabase client configuration  
+- React Query setup for data fetching
+- Search context for global state management
+- Beautiful, responsive landing page
+- Core search bar component with:
+  - Location selection with search
+  - Date pickers for departure/return
+  - Passenger count selector
+  - Trip type toggle (one-way/round-trip)
+  - URL state synchronization
+
+**🔄 Next Steps**
+- Results page with trip listings
+- Map integration with Mapbox
+- Trip detail pages
+- Booking flow implementation
+- Payment integration
+
+## 🛠️ Technology Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: React Query, Context API  
+- **Database**: Supabase (PostgreSQL)
+- **Icons**: Lucide React
+- **Deployment**: Vercel (planned)
+
+## 🎨 Design Principles
+
+Following research-backed UX principles for travel booking:
+
+1. **Single Search Entry Point** - Prominent, centered search functionality
+2. **Progressive Disclosure** - Multi-step wizard approach
+3. **Real-time Feedback** - Instant validation and loading states
+4. **Mobile-first** - Thumb-reachable interactions
+5. **Trust Indicators** - Security badges and clear pricing
+
+## 📝 Development Notes
+
+The application is built step-by-step following modern React patterns:
+- Functional components with hooks
+- TypeScript for type safety
+- Component composition over inheritance
+- Performance optimizations built-in
+
+---
+
+**Note**: This is currently in development mode with mock data. The app will work fully once connected to a Supabase database with the proper schema.
 
 ## Learn More
 
