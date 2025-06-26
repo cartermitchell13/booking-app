@@ -93,17 +93,17 @@ const mockTrips = [
   }
 ];
 
-export default function TripsManagement() {
+export default function OfferingsManagement() {
   const { tenant, isLoading } = useTenant();
-  const [trips, setTrips] = useState(mockTrips);
+  const [offerings, setOfferings] = useState(mockTrips);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Filter trips based on search and status
-  const filteredTrips = trips.filter(trip => {
-    const matchesSearch = trip.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         trip.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || trip.status === statusFilter;
+  // Filter offerings based on search and status
+  const filteredOfferings = offerings.filter(offering => {
+    const matchesSearch = offering.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         offering.location.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || offering.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -127,14 +127,14 @@ export default function TripsManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Trip Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Offering Management</h1>
           <p className="text-gray-600 mt-1">
             Manage your tours, activities, and experiences
           </p>
         </div>
         <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
           <Plus className="w-4 h-4 mr-2" />
-          Create New Trip
+          Create New Offering
         </button>
       </div>
 
@@ -145,7 +145,7 @@ export default function TripsManagement() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search trips by name or location..."
+              placeholder="Search offerings by name or location..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -167,13 +167,13 @@ export default function TripsManagement() {
         </div>
       </Card>
 
-      {/* Trip Stats */}
+      {/* Offering Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Trips</p>
-              <p className="text-2xl font-bold text-gray-900">{trips.length}</p>
+              <p className="text-sm text-gray-600">Total Offerings</p>
+              <p className="text-2xl font-bold text-gray-900">{offerings.length}</p>
             </div>
             <Calendar className="w-6 h-6 text-blue-600" />
           </div>
@@ -181,9 +181,9 @@ export default function TripsManagement() {
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Active Trips</p>
+              <p className="text-sm text-gray-600">Active Offerings</p>
               <p className="text-2xl font-bold text-gray-900">
-                {trips.filter(t => t.status === 'active').length}
+                {offerings.filter(offering => offering.status === 'active').length}
               </p>
             </div>
             <Eye className="w-6 h-6 text-green-600" />
@@ -194,7 +194,7 @@ export default function TripsManagement() {
             <div>
               <p className="text-sm text-gray-600">Total Bookings</p>
               <p className="text-2xl font-bold text-gray-900">
-                {trips.reduce((sum, trip) => sum + trip.bookings, 0)}
+                {offerings.reduce((sum, offering) => sum + offering.bookings, 0)}
               </p>
             </div>
             <Users className="w-6 h-6 text-purple-600" />
@@ -205,7 +205,7 @@ export default function TripsManagement() {
             <div>
               <p className="text-sm text-gray-600">Avg. Rating</p>
               <p className="text-2xl font-bold text-gray-900">
-                {trips.filter(t => t.rating).reduce((sum, trip, _, arr) => sum + (trip.rating || 0), 0) / trips.filter(t => t.rating).length || 0}
+                {offerings.filter(offering => offering.rating).reduce((sum, offering, _, arr) => sum + (offering.rating || 0), 0) / offerings.filter(offering => offering.rating).length || 0}
               </p>
             </div>
             <DollarSign className="w-6 h-6 text-yellow-600" />
@@ -213,10 +213,10 @@ export default function TripsManagement() {
         </Card>
       </div>
 
-      {/* Trips List */}
+      {/* Offerings List */}
       <div className="space-y-4">
-        {filteredTrips.map((trip) => (
-          <Card key={trip.id} className="p-6">
+        {filteredOfferings.map((offering) => (
+          <Card key={offering.id} className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex space-x-4">
                 <div className="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center">
@@ -225,49 +225,49 @@ export default function TripsManagement() {
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{trip.name}</h3>
-                      <p className="text-gray-600 text-sm mt-1">{trip.description}</p>
+                      <h3 className="text-lg font-semibold text-gray-900">{offering.name}</h3>
+                      <p className="text-gray-600 text-sm mt-1">{offering.description}</p>
                     </div>
                     <Badge 
-                      variant={trip.status === 'active' ? 'default' : 'secondary'}
+                      variant={offering.status === 'active' ? 'default' : 'secondary'}
                       className="ml-4"
                     >
-                      {trip.status}
+                      {offering.status}
                     </Badge>
                   </div>
                   
                   <div className="flex items-center space-x-6 text-sm text-gray-600 mb-4">
                     <div className="flex items-center">
                       <MapPin className="w-4 h-4 mr-1" />
-                      {trip.location}
+                      {offering.location}
                     </div>
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
-                      {trip.duration}
+                      {offering.duration}
                     </div>
                     <div className="flex items-center">
                       <DollarSign className="w-4 h-4 mr-1" />
-                      ${trip.price}
+                      ${offering.price}
                     </div>
-                    {trip.capacity && (
+                    {offering.capacity && (
                       <div className="flex items-center">
                         <Users className="w-4 h-4 mr-1" />
-                        {trip.capacity} max
+                        {offering.capacity} max
                       </div>
                     )}
-                    {trip.rating && (
+                    {offering.rating && (
                       <div className="flex items-center">
-                        ⭐ {trip.rating} ({trip.bookings} bookings)
+                        ⭐ {offering.rating} ({offering.bookings} bookings)
                       </div>
                     )}
                   </div>
 
                   {/* Upcoming Departures */}
-                  {trip.upcomingDepartures.length > 0 && (
+                  {offering.upcomingDepartures.length > 0 && (
                     <div>
                       <p className="text-sm font-medium text-gray-900 mb-2">Upcoming Departures:</p>
                       <div className="flex space-x-4">
-                        {trip.upcomingDepartures.slice(0, 3).map((departure, index) => (
+                        {offering.upcomingDepartures.slice(0, 3).map((departure, index) => (
                           <div key={index} className="bg-gray-50 rounded-lg p-2 text-xs">
                             <div className="font-medium">{departure.date}</div>
                             <div className="text-gray-600">{departure.time}</div>
@@ -297,18 +297,18 @@ export default function TripsManagement() {
         ))}
       </div>
 
-      {filteredTrips.length === 0 && (
+      {filteredOfferings.length === 0 && (
         <Card className="p-8 text-center">
           <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No trips found</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No offerings found</h3>
           <p className="text-gray-600 mb-4">
             {searchTerm || statusFilter !== 'all' 
               ? 'Try adjusting your search or filter criteria' 
-              : 'Get started by creating your first trip'}
+              : 'Get started by creating your first offering'}
           </p>
           <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mx-auto">
             <Plus className="w-4 h-4 mr-2" />
-            Create Your First Trip
+            Create Your First Offering
           </button>
         </Card>
       )}

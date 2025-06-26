@@ -26,6 +26,7 @@ export default function HomePage() {
     const loadTrips = async () => {
       try {
         setLoading(true)
+        setError(undefined)
         const tripData = await getTrips()
         setTrips(tripData || [])
       } catch (err) {
@@ -37,7 +38,7 @@ export default function HomePage() {
     }
 
     loadTrips()
-  }, [tenant, tenantLoading, getTrips])
+  }, [tenant, tenantLoading])
 
   const scrollLeft = (ref: React.RefObject<HTMLDivElement | null>) => {
     if (ref.current) {
@@ -110,6 +111,14 @@ export default function HomePage() {
               <a href="#" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>Destinations</a>
               <a href="#" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>About</a>
               <a href="#" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>Support</a>
+              <Link href="/login" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>Login</Link>
+              <Link 
+                href="/register" 
+                className="px-4 py-2 rounded-md text-white transition-colors hover:opacity-90"
+                style={{ backgroundColor: branding.primary_color || '#10B981' }}
+              >
+                Sign Up
+              </Link>
             </nav>
           </div>
         </div>
@@ -225,6 +234,11 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className="mt-4 flex gap-2">
+                      <Link href={`/trip/${trip.id}`} className="flex-1">
+                        <button className="w-full py-3 px-4 border border-gray-200 text-gray-700 font-medium rounded-lg transition-colors hover:bg-gray-50">
+                          View Details
+                        </button>
+                      </Link>
                       <Link href={`/booking/${trip.id}`} className="flex-1">
                         <button 
                           className="w-full py-3 px-4 text-white font-medium rounded-lg transition-colors hover:opacity-90"
@@ -310,14 +324,21 @@ export default function HomePage() {
                           </div>
                         </div>
                       </div>
-                      <Link href={`/booking/${trip.id}`} className="block mt-3">
-                        <button 
-                          className="w-full py-2 px-3 text-white text-sm font-medium rounded-lg transition-colors hover:opacity-90"
-                          style={{ backgroundColor: branding.primary_color || '#10B981' }}
-                        >
-                          Book Now
-                        </button>
-                      </Link>
+                      <div className="mt-3 flex gap-2">
+                        <Link href={`/trip/${trip.id}`} className="flex-1">
+                          <button className="w-full py-2 px-3 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors hover:bg-gray-50">
+                            Details
+                          </button>
+                        </Link>
+                        <Link href={`/booking/${trip.id}`} className="flex-1">
+                          <button 
+                            className="w-full py-2 px-3 text-white text-sm font-medium rounded-lg transition-colors hover:opacity-90"
+                            style={{ backgroundColor: branding.primary_color || '#10B981' }}
+                          >
+                            Book
+                          </button>
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>

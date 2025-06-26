@@ -15,17 +15,29 @@ export function SearchBar() {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSearch = async () => {
-    // Validate required fields
-    if (!search.originId || !search.destinationId || !search.outboundDate) {
-      // TODO: Show validation errors
-      return
-    }
-
     setIsLoading(true)
     
     try {
-      // Navigate to results page
-      router.push('/results')
+      // Build search URL with parameters
+      const params = new URLSearchParams()
+      
+      if (search.destinationId) {
+        params.set('destination', search.destinationId)
+      }
+      if (search.outboundDate) {
+        params.set('date_from', search.outboundDate)
+      }
+      if (search.inboundDate && search.tripType === 'round-trip') {
+        params.set('date_to', search.inboundDate)
+      }
+      
+      const totalPassengers = search.passengers.adults + search.passengers.children + search.passengers.students
+      if (totalPassengers > 0) {
+        params.set('passengers', totalPassengers.toString())
+      }
+      
+      // Navigate to search page with parameters
+      router.push(`/search?${params.toString()}`)
     } catch (error) {
       console.error('Search error:', error)
     } finally {
@@ -33,7 +45,7 @@ export function SearchBar() {
     }
   }
 
-  const isSearchDisabled = !search.originId || !search.destinationId || !search.outboundDate
+  const isSearchDisabled = false // Allow searching with any parameters
 
   return (
     <div className="w-full max-w-6xl mx-auto">

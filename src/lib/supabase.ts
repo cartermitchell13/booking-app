@@ -1,19 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Use placeholder values for development if environment variables aren't set
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
+// Hardcode the values for now to bypass env variable issues
+const supabaseUrl = 'https://zsdkqmlhnffoidwyygce.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzZGtxbWxobmZmb2lkd3l5Z2NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MjY1MDAsImV4cCI6MjA2NTEwMjUwMH0.wBz8qK_lmSgX-c2iVlGE36bdaGMWzxbEdd81tQZjBxo'
 
-// Only create the client if we have real credentials
-const hasRealCredentials = supabaseUrl !== 'https://placeholder.supabase.co' && supabaseAnonKey !== 'placeholder-key'
-
-export const supabase = hasRealCredentials 
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false, // We'll handle auth sessions manually if needed
-      },
-    })
-  : null
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false, // We'll handle auth sessions manually if needed
+  },
+})
 
 // Database function calls with proper error handling
 export const searchTrips = async (
@@ -22,16 +17,6 @@ export const searchTrips = async (
   outboundDate: string,
   inboundDate?: string
 ) => {
-  if (!supabase) {
-    console.warn('Supabase not configured - using mock data')
-    // Return mock data for development
-    return {
-      outbound_trips: [],
-      inbound_trips: [],
-      total_count: 0
-    }
-  }
-
   const { data, error } = await supabase.rpc('rpc_search_trips', {
     origin_id: originId,
     destination_id: destinationId,
@@ -48,53 +33,6 @@ export const searchTrips = async (
 }
 
 export const getLocations = async () => {
-  if (!supabase) {
-    console.warn('Supabase not configured - using mock data')
-    // Return mock locations for development
-    return [
-      {
-        id: '1',
-        name: 'Toronto Union Station',
-        slug: 'toronto-union',
-        city: 'Toronto',
-        province: 'ON',
-        latitude: 43.6426,
-        longitude: -79.3871,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: '2', 
-        name: 'Banff Town',
-        slug: 'banff-town',
-        city: 'Banff',
-        province: 'AB',
-        latitude: 51.1784,
-        longitude: -115.5708,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: '3',
-        name: 'Algonquin Park Visitor Centre',
-        slug: 'algonquin-park',
-        city: 'Whitney',
-        province: 'ON',
-        latitude: 45.5377,
-        longitude: -78.3706,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: '4',
-        name: 'Jasper Railway Station',
-        slug: 'jasper-station',
-        city: 'Jasper',
-        province: 'AB',
-        latitude: 52.8737,
-        longitude: -118.0814,
-        created_at: new Date().toISOString()
-      }
-    ]
-  }
-
   const { data, error } = await supabase
     .from('locations')
     .select('*')
@@ -105,15 +43,10 @@ export const getLocations = async () => {
     throw error
   }
 
-  return data
+  return data || []
 }
 
 export const getTripBySlug = async (slug: string) => {
-  if (!supabase) {
-    console.warn('Supabase not configured - using mock data')
-    return null
-  }
-
   const { data, error } = await supabase
     .from('trips')
     .select(`

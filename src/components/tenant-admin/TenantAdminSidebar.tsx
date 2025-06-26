@@ -25,10 +25,10 @@ const navigation = [
     description: 'Overview & Analytics'
   },
   {
-    name: 'Trips',
-    href: '/dashboard/trips',
+    name: 'Offerings',
+    href: '/dashboard/offerings',
     icon: Calendar,
-    description: 'Manage Your Tours'
+    description: 'Manage Your Offerings'
   },
   {
     name: 'Bookings',

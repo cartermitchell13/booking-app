@@ -22,6 +22,11 @@
   --input: #faf6e1;
   --ring: #637752;
   --font-heading: 'Cultivated Mind True North', sans-serif;
+  
+  /* Tenant branding variables - can be overridden dynamically */
+  --tenant-primary: #10B981;
+  --tenant-secondary: #059669;
+  --tenant-font: 'Inter', sans-serif;
 }
 
 @theme inline {
@@ -172,4 +177,33 @@ h1, h2, h3, h4, h5, h6,
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Tenant branding utility classes */
+.bg-tenant-primary {
+  background-color: var(--tenant-primary) !important;
+}
+
+.bg-tenant-secondary {
+  background-color: var(--tenant-secondary) !important;
+}
+
+.text-tenant-primary {
+  color: var(--tenant-primary) !important;
+}
+
+.text-tenant-secondary {
+  color: var(--tenant-secondary) !important;
+}
+
+.border-tenant-primary {
+  border-color: var(--tenant-primary) !important;
+}
+
+.border-tenant-secondary {
+  border-color: var(--tenant-secondary) !important;
+}
+
+.font-tenant {
+  font-family: var(--tenant-font) !important;
 }

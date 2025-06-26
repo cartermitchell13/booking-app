@@ -3,7 +3,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useState } from 'react'
-import { TenantProvider } from './tenant-context'
+import { TenantProvider, useTenantBranding } from './tenant-context'
+import { AuthProvider } from './auth-context'
+
+// Component to apply tenant branding globally
+function BrandingApplier() {
+  useTenantBranding(); // This hook applies the CSS variables
+  return null;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,8 +29,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <TenantProvider>
-        {children}
-        <ReactQueryDevtools initialIsOpen={false} />
+        <AuthProvider>
+          <BrandingApplier />
+          {children}
+          <ReactQueryDevtools initialIsOpen={false} />
+        </AuthProvider>
       </TenantProvider>
     </QueryClientProvider>
   )

@@ -156,6 +156,11 @@ export interface TenantTrip {
   image_url?: string;
   highlights?: string[];
   included_items?: string[];
+  // Geographic coordinates for map display
+  destination_lat?: number;
+  destination_lng?: number;
+  departure_lat?: number;
+  departure_lng?: number;
   status: 'active' | 'inactive' | 'cancelled';
   created_at: string;
   updated_at: string;
