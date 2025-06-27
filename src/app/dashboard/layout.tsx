@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
+import { useRouteGuard } from '@/hooks/useRouteGuard';
 import TenantAdminSidebar from '@/components/tenant-admin/TenantAdminSidebar';
 import TenantAdminHeader from '@/components/tenant-admin/TenantAdminHeader';
 
@@ -11,33 +9,12 @@ export default function TenantAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
+  const { isAllowed, isChecking } = useRouteGuard({
+    allowedRoles: ['tenant_admin', 'tenant_staff', 'super_admin'],
+    redirectTo: '/login',
+  });
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (!isLoading) {
-        if (!user) {
-          router.push('/login?redirect=/dashboard');
-          return;
-        }
-        
-        // Check if user has admin permissions
-        if (user.role !== 'tenant_admin' && user.role !== 'super_admin') {
-          router.push('/account');
-          return;
-        }
-        
-        setIsChecking(false);
-      }
-    };
-
-    checkAuth();
-  }, [user, isLoading, router]);
-
-  // Show loading state while checking authentication
-  if (isLoading || isChecking) {
+  if (isChecking) {
     return (
       <div className="flex h-screen bg-gray-100">
         <div className="flex-1 flex items-center justify-center">
@@ -50,14 +27,7 @@ export default function TenantAdminLayout({
     );
   }
 
-  // Don't render dashboard if user is not authenticated or doesn't have permission
-  // TEMPORARY: Allow all authenticated users for testing
-  // if (!user || (user.role !== 'tenant_admin' && user.role !== 'super_admin')) {
-  //   return null;
-  // }
-  if (!user) {
-    return null;
-  }
+  if (!isAllowed) return null;
 
   return (
     <div className="flex h-screen bg-gray-100">

@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, MapPin, Search } from 'lucide-react'
-import { getLocations } from '@/lib/supabase'
 import { Location } from '@/types'
 
 interface LocationSelectProps {
@@ -12,6 +10,18 @@ interface LocationSelectProps {
   placeholder?: string
   excludeId?: string
 }
+
+// Mock location data - replace with real data when locations table is implemented
+const mockLocations: Location[] = [
+  { id: '1', name: 'Vancouver', slug: 'vancouver', city: 'Vancouver', province: 'BC', latitude: 49.2827, longitude: -123.1207, created_at: '2024-01-01T00:00:00Z' },
+  { id: '2', name: 'Calgary', slug: 'calgary', city: 'Calgary', province: 'AB', latitude: 51.0447, longitude: -114.0719, created_at: '2024-01-01T00:00:00Z' },
+  { id: '3', name: 'Banff', slug: 'banff', city: 'Banff', province: 'AB', latitude: 51.1784, longitude: -115.5708, created_at: '2024-01-01T00:00:00Z' },
+  { id: '4', name: 'Jasper', slug: 'jasper', city: 'Jasper', province: 'AB', latitude: 52.8737, longitude: -118.0814, created_at: '2024-01-01T00:00:00Z' },
+  { id: '5', name: 'Whistler', slug: 'whistler', city: 'Whistler', province: 'BC', latitude: 50.1163, longitude: -122.9574, created_at: '2024-01-01T00:00:00Z' },
+  { id: '6', name: 'Victoria', slug: 'victoria', city: 'Victoria', province: 'BC', latitude: 48.4284, longitude: -123.3656, created_at: '2024-01-01T00:00:00Z' },
+  { id: '7', name: 'Toronto', slug: 'toronto', city: 'Toronto', province: 'ON', latitude: 43.6532, longitude: -79.3832, created_at: '2024-01-01T00:00:00Z' },
+  { id: '8', name: 'Montreal', slug: 'montreal', city: 'Montreal', province: 'QC', latitude: 45.5017, longitude: -73.5673, created_at: '2024-01-01T00:00:00Z' },
+]
 
 export function LocationSelect({ 
   value, 
@@ -23,11 +33,9 @@ export function LocationSelect({
   const [searchTerm, setSearchTerm] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const { data: locations = [], isLoading } = useQuery({
-    queryKey: ['locations'],
-    queryFn: getLocations,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
+  // Use mock data instead of API call
+  const locations = mockLocations
+  const isLoading = false
 
   const selectedLocation = locations.find(loc => loc.id === value)
 

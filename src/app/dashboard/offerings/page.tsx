@@ -14,97 +14,153 @@ import {
   Trash2,
   Eye,
   Search,
-  Filter
+  Filter,
+  Package,
+  Copy,
+  Settings,
+  MoreVertical,
+  CheckCircle,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-// Mock trip data for demo
-const mockTrips = [
+// Enhanced mock data showcasing universal product system
+const mockOfferings = [
   {
-    id: '1',
+    id: 'OFFER-001',
     name: 'Banff National Park Bus Tour',
     description: 'Full day guided tour of Banff National Park with wildlife viewing',
     type: 'seat',
     price: 89,
+    currency: 'CAD',
     duration: '8 hours',
     capacity: 24,
     location: 'Banff, AB',
     image: '/images/banff-trip.jpg',
     status: 'active',
     bookings: 145,
+    revenue: 12905,
     rating: 4.8,
-    upcomingDepartures: [
-      { date: '2024-01-20', time: '09:00 AM', booked: 18 },
-      { date: '2024-01-21', time: '09:00 AM', booked: 12 },
-      { date: '2024-01-22', time: '09:00 AM', booked: 8 }
-    ]
+    instances: 12,
+    lastModified: '2024-01-15',
+    features: ['WiFi', 'Lunch Included', 'Professional Guide', 'Photo Stops'],
+    tags: ['Popular', 'Wildlife', 'Scenic']
   },
   {
-    id: '2',
-    name: 'Lake Louise Day Trip',
-    description: 'Scenic day trip to the stunning Lake Louise',
-    type: 'seat',
+    id: 'OFFER-002',
+    name: 'Lake Louise Boat Cruise',
+    description: 'Scenic boat cruise on the stunning Lake Louise',
+    type: 'capacity',
     price: 125,
+    currency: 'CAD',
     duration: '6 hours',
-    capacity: 16,
+    capacity: 30,
     location: 'Lake Louise, AB',
     image: '/images/lake-louise.jpg',
     status: 'active',
     bookings: 89,
+    revenue: 11125,
     rating: 4.9,
-    upcomingDepartures: [
-      { date: '2024-01-20', time: '10:00 AM', booked: 14 },
-      { date: '2024-01-21', time: '10:00 AM', booked: 9 }
-    ]
+    instances: 8,
+    lastModified: '2024-01-18',
+    features: ['Boat Tour', 'Refreshments', 'Photography', 'Small Group'],
+    tags: ['Premium', 'Photography', 'Lake']
   },
   {
-    id: '3',
+    id: 'OFFER-003',
     name: 'Vancouver Food Walking Tour',
-    description: 'Explore Vancouver\'s best food spots on foot',
+    description: 'Explore Vancouver\'s culinary scene on foot',
     type: 'open',
     price: 45,
+    currency: 'CAD',
     duration: '3 hours',
-    capacity: null, // Unlimited for walking tours
+    capacity: null, // unlimited for open type
     location: 'Vancouver, BC',
     image: '/images/vancouver-food.jpg',
     status: 'active',
-    bookings: 234,
+    bookings: 67,
+    revenue: 3015,
     rating: 4.7,
-    upcomingDepartures: [
-      { date: '2024-01-20', time: '02:00 PM', booked: 12 },
-      { date: '2024-01-20', time: '06:00 PM', booked: 8 },
-      { date: '2024-01-21', time: '02:00 PM', booked: 15 }
-    ]
+    instances: 20,
+    lastModified: '2024-01-12',
+    features: ['Food Tastings', 'Local Guide', 'Walking Tour', 'Cultural Experience'],
+    tags: ['Food', 'Cultural', 'Urban']
   },
   {
-    id: '4',
-    name: 'Jasper Wildlife Tour',
-    description: 'Wildlife viewing and photography in Jasper National Park',
-    type: 'seat',
-    price: 95,
-    duration: '5 hours',
-    capacity: 12,
-    location: 'Jasper, AB',
-    image: '/images/jasper-wildlife.jpg',
+    id: 'OFFER-004',
+    name: 'Mountain Bike Rental',
+    description: 'High-quality mountain bike rental with gear',
+    type: 'equipment',
+    price: 35,
+    currency: 'CAD',
+    duration: 'Daily',
+    capacity: 15, // number of bikes available
+    location: 'Whistler, BC',
+    image: '/images/bike-rental.jpg',
+    status: 'active',
+    bookings: 156,
+    revenue: 5460,
+    rating: 4.6,
+    instances: 30,
+    lastModified: '2024-01-20',
+    features: ['Helmet Included', 'Route Map', 'Maintenance Support', 'Trail Guide'],
+    tags: ['Adventure', 'Self-Guided', 'Equipment']
+  },
+  {
+    id: 'OFFER-005',
+    name: 'Photography Workshop',
+    description: 'Professional landscape photography workshop',
+    type: 'timeslot',
+    price: 180,
+    currency: 'CAD',
+    duration: '4 hours',
+    capacity: 8,
+    location: 'Moraine Lake, AB',
+    image: '/images/photography-workshop.jpg',
     status: 'draft',
     bookings: 0,
+    revenue: 0,
     rating: null,
-    upcomingDepartures: []
+    instances: 4,
+    lastModified: '2024-01-22',
+    features: ['Professional Instructor', 'Equipment Provided', 'Small Group', 'Certificate'],
+    tags: ['New', 'Education', 'Photography']
   }
 ];
 
+// Product type colors for visual distinction
+const offeringTypeColors = {
+  seat: 'bg-blue-100 text-blue-800',
+  capacity: 'bg-green-100 text-green-800',
+  open: 'bg-purple-100 text-purple-800',
+  equipment: 'bg-orange-100 text-orange-800',
+  package: 'bg-indigo-100 text-indigo-800',
+  timeslot: 'bg-pink-100 text-pink-800'
+};
+
+const statusColors = {
+  active: 'bg-green-100 text-green-800',
+  draft: 'bg-yellow-100 text-yellow-800',
+  inactive: 'bg-gray-100 text-gray-800',
+  archived: 'bg-red-100 text-red-800'
+};
+
 export default function OfferingsManagement() {
   const { tenant, isLoading } = useTenant();
-  const [offerings, setOfferings] = useState(mockTrips);
+  const [offerings, setOfferings] = useState(mockOfferings);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
-  // Filter offerings based on search and status
+  // Filter offerings based on search, status, and type
   const filteredOfferings = offerings.filter(offering => {
     const matchesSearch = offering.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         offering.location.toLowerCase().includes(searchTerm.toLowerCase());
+                         offering.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         offering.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || offering.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilter === 'all' || offering.type === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   if (isLoading) {
@@ -127,9 +183,9 @@ export default function OfferingsManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Offering Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Offerings & Products</h1>
           <p className="text-gray-600 mt-1">
-            Manage your tours, activities, and experiences
+            Manage all your offerings - tours, equipment, classes, packages, and more
           </p>
         </div>
         <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
@@ -161,7 +217,21 @@ export default function OfferingsManagement() {
               <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="draft">Draft</option>
-              <option value="paused">Paused</option>
+              <option value="inactive">Inactive</option>
+              <option value="archived">Archived</option>
+            </select>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Types</option>
+              <option value="seat">Seat-based</option>
+              <option value="capacity">Capacity</option>
+              <option value="open">Open</option>
+              <option value="equipment">Equipment</option>
+              <option value="package">Package</option>
+              <option value="timeslot">Timeslot</option>
             </select>
           </div>
         </div>
@@ -203,12 +273,12 @@ export default function OfferingsManagement() {
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Avg. Rating</p>
+              <p className="text-sm text-gray-600">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
-                {offerings.filter(offering => offering.rating).reduce((sum, offering, _, arr) => sum + (offering.rating || 0), 0) / offerings.filter(offering => offering.rating).length || 0}
+                ${offerings.reduce((sum, offering) => sum + (offering.revenue || 0), 0).toLocaleString()}
               </p>
             </div>
-            <DollarSign className="w-6 h-6 text-yellow-600" />
+            <DollarSign className="w-6 h-6 text-green-600" />
           </div>
         </Card>
       </div>
@@ -262,21 +332,27 @@ export default function OfferingsManagement() {
                     )}
                   </div>
 
-                  {/* Upcoming Departures */}
-                  {offering.upcomingDepartures.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 mb-2">Upcoming Departures:</p>
-                      <div className="flex space-x-4">
-                        {offering.upcomingDepartures.slice(0, 3).map((departure, index) => (
-                          <div key={index} className="bg-gray-50 rounded-lg p-2 text-xs">
-                            <div className="font-medium">{departure.date}</div>
-                            <div className="text-gray-600">{departure.time}</div>
-                            <div className="text-blue-600">{departure.booked} booked</div>
-                          </div>
-                        ))}
-                      </div>
+                  {/* Offering Details */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <Badge className={offeringTypeColors[offering.type as keyof typeof offeringTypeColors]}>
+                        {offering.type}
+                      </Badge>
+                      <Badge className={statusColors[offering.status as keyof typeof statusColors]}>
+                        {offering.status}
+                      </Badge>
+                      {offering.revenue > 0 && (
+                        <span className="text-sm text-green-600 font-medium">
+                          ${offering.revenue.toLocaleString()} revenue
+                        </span>
+                      )}
                     </div>
-                  )}
+                    {offering.instances && (
+                      <span className="text-sm text-gray-500">
+                        {offering.instances} instances
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               

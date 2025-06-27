@@ -17,7 +17,7 @@ export default function TripDetailPage() {
   const tripId = params.id as string
   
   const { tenant, isLoading: tenantLoading } = useTenant()
-  const { getTrips } = useTenantSupabase()
+  const { getProductById, getProducts } = useTenantSupabase()
   const branding = useTenantBranding()
 
   // State
@@ -37,7 +37,7 @@ export default function TripDetailPage() {
     "https://images.unsplash.com/photo-1445307806294-bff7f67ff225?w=800&h=600&fit=crop&crop=center"
   ]
 
-  // Load trip data
+  // Load trip data (using new products system)
   useEffect(() => {
     if (tenantLoading || !tenant || !tripId) return
 
@@ -45,18 +45,28 @@ export default function TripDetailPage() {
       try {
         setLoading(true)
         setError(undefined)
-        const allTrips = await getTrips()
-        const foundTrip = allTrips?.find(t => t.id === tripId)
+        console.log('Loading trip details with ID:', tripId)
+        
+        // Load the specific trip using new product system
+        const foundTrip = await getProductById(tripId)
+        console.log('Trip details loaded:', foundTrip)
         
         if (foundTrip) {
           setTrip(foundTrip)
-          // Load related trips
-          const related = allTrips?.filter(t => 
-            t.id !== tripId && 
-            t.destination === foundTrip.destination &&
-            t.status === 'active'
-          ).slice(0, 3) || []
-          setRelatedTrips(related)
+          
+          // Load related trips (all trips, then filter)
+          try {
+            const allTrips = await getProducts()
+            const related = allTrips?.filter(t => 
+              t.id !== tripId && 
+              t.destination === foundTrip.destination &&
+              t.status === 'active'
+            ).slice(0, 3) || []
+            setRelatedTrips(related)
+          } catch (relatedErr) {
+            console.warn('Could not load related trips:', relatedErr)
+            // Don't fail the main trip loading if related trips fail
+          }
         } else {
           setError('Trip not found')
         }
@@ -69,7 +79,7 @@ export default function TripDetailPage() {
     }
 
     loadTrip()
-  }, [tenant, tenantLoading, tripId])
+  }, [tenant, tenantLoading, tripId, getProductById, getProducts])
 
   // Format functions
   const formatPrice = (cents: number) => {
@@ -95,10 +105,13 @@ export default function TripDetailPage() {
 
   if (tenantLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#faf9f6' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: branding.background_color || '#FFFFFF' }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading trip details...</p>
+          <div 
+            className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+            style={{ borderBottomColor: branding.primary_color || '#10B981' }}
+          ></div>
+          <p style={{ color: branding.textOnBackground }}>Loading trip details...</p>
         </div>
       </div>
     )
@@ -106,13 +119,16 @@ export default function TripDetailPage() {
 
   if (error || !trip) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#faf9f6' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: branding.background_color || '#FFFFFF' }}>
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Trip not found'}</p>
-          <Link href="/search">
+          <p className="mb-4" style={{ color: '#DC2626' }}>{error || 'Trip not found'}</p>
+          <Link href="/">
             <button 
-              className="px-6 py-3 text-white rounded-lg transition-colors hover:opacity-90"
-              style={{ backgroundColor: branding.primary_color || '#10B981' }}
+              className="px-6 py-3 rounded-lg transition-colors hover:opacity-90"
+              style={{ 
+                backgroundColor: branding.primary_color || '#10B981',
+                color: branding.textOnPrimary 
+              }}
             >
               Browse All Trips
             </button>
@@ -123,13 +139,13 @@ export default function TripDetailPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#faf9f6' }}>
+    <div className="min-h-screen" style={{ backgroundColor: branding.background_color || '#FFFFFF' }}>
       {/* Header */}
-      <header className="relative z-10 bg-white border-b border-gray-100">
+      <header className="relative z-10 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex justify-between items-center py-4">
-            <Link href="/search" className="flex items-center space-x-3">
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <Link href="/" className="flex items-center space-x-3">
+              <ArrowLeft className="w-5 h-5" style={{ color: branding.textOnBackground }} />
               <Image
                 src={branding.logo_url || "/images/black-pb-logo.png"}
                 alt={tenant?.name || "Logo"}
@@ -139,13 +155,13 @@ export default function TripDetailPage() {
               />
             </Link>
             <nav className="hidden md:flex space-x-8">
-              <Link href="/search" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>
+              <Link href="/" className="transition-colors hover:opacity-70" style={{ color: branding.textOnBackground }}>
                 Trips
               </Link>
-              <a href="#" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>
+              <a href="#" className="transition-colors hover:opacity-70" style={{ color: branding.textOnBackground }}>
                 About
               </a>
-              <a href="#" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>
+              <a href="#" className="transition-colors hover:opacity-70" style={{ color: branding.textOnBackground }}>
                 Support
               </a>
             </nav>
@@ -171,7 +187,11 @@ export default function TripDetailPage() {
                 />
                 <button
                   onClick={() => setShowLightbox(true)}
-                  className="absolute top-4 right-4 bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 text-sm font-medium hover:bg-white transition-colors"
+                  className="absolute top-4 right-4 backdrop-blur-sm rounded-lg px-3 py-2 text-sm font-medium hover:opacity-90 transition-colors"
+                  style={{ 
+                    backgroundColor: `${branding.foreground_color || '#FFFFFF'}CC`,
+                    color: branding.textOnForeground 
+                  }}
                 >
                   <Camera className="w-4 h-4 inline mr-2" />
                   View Gallery
@@ -179,13 +199,21 @@ export default function TripDetailPage() {
                 
                 <button
                   onClick={prevImage}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm rounded-full p-2 hover:bg-white transition-colors"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 backdrop-blur-sm rounded-full p-2 hover:opacity-90 transition-colors"
+                  style={{ 
+                    backgroundColor: `${branding.foreground_color || '#FFFFFF'}CC`,
+                    color: branding.textOnForeground 
+                  }}
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
                   onClick={nextImage}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm rounded-full p-2 hover:bg-white transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 backdrop-blur-sm rounded-full p-2 hover:opacity-90 transition-colors"
+                  style={{ 
+                    backgroundColor: `${branding.foreground_color || '#FFFFFF'}CC`,
+                    color: branding.textOnForeground 
+                  }}
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -197,11 +225,12 @@ export default function TripDetailPage() {
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
-                      selectedImageIndex === index 
-                        ? 'border-emerald-500' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors"
+                    style={{
+                      borderColor: selectedImageIndex === index 
+                        ? branding.primary_color || '#10B981'
+                        : '#E5E7EB'
+                    }}
                   >
                     <Image
                       src={image}
@@ -216,15 +245,21 @@ export default function TripDetailPage() {
             </div>
 
             {/* Trip Info */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100">
+            <div 
+              className="rounded-2xl p-6 border-2"
+              style={{ 
+                backgroundColor: branding.foreground_color || '#FFFFFF',
+                borderColor: branding.accent_color || '#637752'
+              }}
+            >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{trip.title}</h1>
-                  <p className="text-gray-600 flex items-center mb-2">
+                  <h1 className="text-3xl font-bold mb-2" style={{ color: branding.textOnForeground }}>{trip.title}</h1>
+                  <p className="flex items-center mb-2" style={{ color: branding.textOnForeground }}>
                     <MapPin className="w-5 h-5 mr-2" />
                     {trip.destination}
                   </p>
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-4 text-sm" style={{ color: branding.textOnForeground }}>
                     <div className="flex items-center">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
                       <span>4.9 (127 reviews)</span>
@@ -236,23 +271,35 @@ export default function TripDetailPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Heart className="w-5 h-5 text-gray-600" />
+                  <button 
+                    className="p-2 border border-gray-200 rounded-lg hover:opacity-70 transition-colors"
+                    style={{ color: branding.textOnForeground }}
+                  >
+                    <Heart className="w-5 h-5" />
                   </button>
-                  <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Share className="w-5 h-5 text-gray-600" />
+                  <button 
+                    className="p-2 border border-gray-200 rounded-lg hover:opacity-70 transition-colors"
+                    style={{ color: branding.textOnForeground }}
+                  >
+                    <Share className="w-5 h-5" />
                   </button>
                 </div>
               </div>
 
-              <p className="text-gray-700 text-lg leading-relaxed">
+              <p className="text-lg leading-relaxed" style={{ color: branding.textOnForeground }}>
                 {trip.description || "Experience the beauty of nature with our expertly guided adventure tour. Discover breathtaking landscapes, learn about local wildlife, and create memories that will last a lifetime."}
               </p>
             </div>
 
             {/* Highlights */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Trip Highlights</h2>
+            <div 
+              className="rounded-2xl p-6 border-2"
+              style={{ 
+                backgroundColor: branding.foreground_color || '#FFFFFF',
+                borderColor: branding.accent_color || '#637752'
+              }}
+            >
+              <h2 className="text-2xl font-bold mb-4" style={{ color: branding.textOnForeground }}>Trip Highlights</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(trip.highlights || [
                   "Guided nature walks with expert naturalists",
@@ -263,16 +310,25 @@ export default function TripDetailPage() {
                   "All safety equipment provided"
                 ]).map((highlight, index) => (
                   <div key={index} className="flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{highlight}</span>
+                    <CheckCircle 
+                      className="w-5 h-5 flex-shrink-0 mt-0.5" 
+                      style={{ color: branding.primary_color || '#10B981' }}
+                    />
+                    <span style={{ color: branding.textOnForeground }}>{highlight}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* What's Included */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">What's Included</h2>
+            <div 
+              className="rounded-2xl p-6 border-2"
+              style={{ 
+                backgroundColor: branding.foreground_color || '#FFFFFF',
+                borderColor: branding.accent_color || '#637752'
+              }}
+            >
+              <h2 className="text-2xl font-bold mb-4" style={{ color: branding.textOnForeground }}>What's Included</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(trip.included_items || [
                   "Professional guide",
@@ -283,8 +339,11 @@ export default function TripDetailPage() {
                   "Certificate of completion"
                 ]).map((item, index) => (
                   <div key={index} className="flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{item}</span>
+                    <CheckCircle 
+                      className="w-5 h-5 flex-shrink-0 mt-0.5" 
+                      style={{ color: branding.primary_color || '#10B981' }}
+                    />
+                    <span style={{ color: branding.textOnForeground }}>{item}</span>
                   </div>
                 ))}
               </div>
@@ -296,14 +355,20 @@ export default function TripDetailPage() {
             <div className="sticky top-8 space-y-6">
               
               {/* Booking Card */}
-              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-lg">
+              <div 
+                className="rounded-2xl p-6 border-2 shadow-lg"
+                style={{ 
+                  backgroundColor: branding.foreground_color || '#FFFFFF',
+                  borderColor: branding.accent_color || '#637752'
+                }}
+              >
                 <div className="text-center mb-6">
-                  <div className="text-3xl font-bold text-gray-900 mb-1">
+                  <div className="text-3xl font-bold mb-1" style={{ color: branding.textOnForeground }}>
                     {formatPrice(trip.price_adult)}
                   </div>
-                  <div className="text-gray-600">per person</div>
+                  <div style={{ color: branding.textOnForeground }}>per person</div>
                   {trip.price_child && (
-                    <div className="text-sm text-gray-500 mt-1">
+                    <div className="text-sm mt-1" style={{ color: branding.textOnForeground }}>
                       Children: {formatPrice(trip.price_child)}
                     </div>
                   )}
@@ -311,41 +376,50 @@ export default function TripDetailPage() {
 
                 <div className="space-y-4 mb-6">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Available spots:</span>
-                    <span className="font-medium text-emerald-600">{trip.available_seats} remaining</span>
+                    <span style={{ color: branding.textOnForeground }}>Available spots:</span>
+                    <span className="font-medium" style={{ color: branding.primary_color || '#10B981' }}>{trip.available_seats} remaining</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Departure:</span>
-                    <span className="font-medium">{formatTime(trip.departure_time)}</span>
+                    <span style={{ color: branding.textOnForeground }}>Departure:</span>
+                    <span className="font-medium" style={{ color: branding.textOnForeground }}>{formatTime(trip.departure_time)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Duration:</span>
-                    <span className="font-medium">Full Day</span>
+                    <span style={{ color: branding.textOnForeground }}>Duration:</span>
+                    <span className="font-medium" style={{ color: branding.textOnForeground }}>Full Day</span>
                   </div>
                 </div>
 
                 <Link href={`/booking/${trip.id}`}>
                   <button 
-                    className="w-full py-4 px-6 text-white font-semibold text-lg rounded-xl transition-colors hover:opacity-90 mb-4"
-                    style={{ backgroundColor: branding.primary_color || '#10B981' }}
+                    className="w-full py-4 px-6 font-semibold text-lg rounded-xl transition-colors hover:opacity-90 mb-4"
+                    style={{ 
+                      backgroundColor: branding.primary_color || '#10B981',
+                      color: branding.textOnPrimary 
+                    }}
                   >
                     Book This Trip
                   </button>
                 </Link>
 
-                <div className="text-center text-sm text-gray-600">
+                <div className="text-center text-sm" style={{ color: branding.textOnForeground }}>
                   <p>Free cancellation up to 24 hours</p>
                   <p>No booking fees • Secure payment</p>
                 </div>
               </div>
 
               {/* Contact Info */}
-              <div className="bg-white rounded-2xl p-6 border border-gray-100">
-                <h3 className="font-semibold text-gray-900 mb-4">Need Help?</h3>
+              <div 
+                className="rounded-2xl p-6 border-2"
+                style={{ 
+                  backgroundColor: branding.foreground_color || '#FFFFFF',
+                  borderColor: branding.accent_color || '#637752'
+                }}
+              >
+                <h3 className="font-semibold mb-4" style={{ color: branding.textOnForeground }}>Need Help?</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-3">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-700">1-800-PARKBUS</span>
+                    <Phone className="w-4 h-4" style={{ color: branding.primary_color || '#10B981' }} />
+                    <span style={{ color: branding.textOnForeground }}>1-800-PARKBUS</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Mail className="w-4 h-4 text-gray-400" />

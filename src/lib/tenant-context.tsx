@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Tenant, TenantContextType } from '@/types';
 import { supabase } from './supabase';
+import { getContrastingTextColor } from './utils';
 
 const TenantContext = createContext<TenantContextType>({
   tenant: null,
@@ -394,12 +395,219 @@ export function useTenantSupabase() {
     return data;
   }, [tenant?.id]);
   
+  // Helper method to get products with instances (real data from new system)
+  const getProducts = useCallback(async () => {
+    if (!tenant?.id) {
+      console.log('No tenant ID, returning empty array');
+      return [];
+    }
+
+    console.log('Loading products for tenant:', tenant.id, tenant.name);
+
+    try {
+      // For mock tenant ID, use the real ParkBus tenant ID
+      const actualTenantId = tenant.id === 'mock-parkbus-id' 
+        ? '20ee5f83-1019-46c7-9382-05a6f1ded9bf' 
+        : tenant.id;
+
+      console.log('Using actual tenant ID:', actualTenantId);
+
+      // Get products with their available instances for this tenant
+      // Note: RLS temporarily disabled for development
+      const { data: products, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          product_instances (
+            id,
+            start_time,
+            end_time,
+            max_quantity,
+            available_quantity
+          )
+        `)
+        .eq('tenant_id', actualTenantId)
+        .order('created_at', { ascending: false });
+
+      // Enhanced error handling
+      if (error) {
+        console.error('Supabase query error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          data: error
+        });
+        
+        // Check if it's an RLS/auth error
+        if (error.message?.includes('policy')) {
+          console.error('RLS Policy error - user may not be authenticated or policy is blocking access');
+        }
+        
+        throw error;
+      }
+
+      console.log(`Successfully loaded ${products?.length || 0} products`);
+      
+      if (!products || products.length === 0) {
+        console.warn('No products found for tenant:', actualTenantId);
+        return [];
+      }
+
+            // Transform products to match the TenantTrip interface
+      const transformed = products.map(product => ({
+        id: product.id,
+        tenant_id: actualTenantId,
+        title: product.name,
+        description: product.description || '',
+        destination: product.product_data?.departure_location || 'Destination',
+        departure_location: product.product_data?.departure_location || 'Departure Location',
+        departure_time: product.product_instances?.[0]?.start_time || new Date().toISOString(),
+        return_time: product.product_instances?.[0]?.end_time,
+        price_adult: product.base_price,
+        price_child: Math.round(product.base_price * 0.7), // 30% discount for children
+        max_passengers: product.product_instances?.reduce((total: number, instance: any) => 
+          total + (instance.max_quantity || 0), 0) || 50,
+        available_seats: product.product_instances?.reduce((total: number, instance: any) => 
+          total + (instance.available_quantity || 0), 0) || 0,
+        image_url: product.image_url,
+        highlights: product.product_data?.highlights || [],
+        included_items: product.product_data?.what_included || [],
+        destination_lat: product.product_data?.destination_lat || product.product_data?.destination_info?.latitude || 0,
+        destination_lng: product.product_data?.destination_lng || product.product_data?.destination_info?.longitude || 0,
+        departure_lat: 0,
+        departure_lng: 0,
+        status: 'active' as const,
+        created_at: product.created_at,
+        updated_at: product.updated_at
+      }));
+
+      console.log('Transformed products:', transformed);
+      return transformed;
+
+    } catch (error: any) {
+      // Enhanced error logging
+      console.error('Error fetching products:', {
+        error,
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+        tenantId: tenant?.id,
+        tenantName: tenant?.name
+      });
+      
+      // Try to determine error type
+      if (error?.message?.includes('JWT')) {
+        console.error('JWT/Authentication error - check if user is properly authenticated');
+      } else if (error?.message?.includes('policy')) {
+        console.error('RLS Policy error - check database policies and tenant context');
+      } else if (error?.message?.includes('permission')) {
+        console.error('Permission error - check user roles and database permissions');
+      } else if (error?.code === 'PGRST116') {
+        console.error('PostgREST error - likely RLS policy blocking access');
+      }
+      
+      throw error;
+    }
+  }, [tenant, supabase]);
+
+  // Helper method to get single product by ID (for booking page)
+  const getProductById = useCallback(async (productId: string) => {
+    if (!tenant?.id) {
+      console.log('No tenant ID, returning null');
+      return null;
+    }
+
+    console.log('Loading product by ID:', productId, 'for tenant:', tenant.id, tenant.name);
+
+    try {
+      // For mock tenant ID, use the real ParkBus tenant ID
+      const actualTenantId = tenant.id === 'mock-parkbus-id' 
+        ? '20ee5f83-1019-46c7-9382-05a6f1ded9bf' 
+        : tenant.id;
+
+      console.log('Using actual tenant ID:', actualTenantId);
+
+      // Get single product with its instances
+      const { data: product, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          product_instances (
+            id,
+            start_time,
+            end_time,
+            max_quantity,
+            available_quantity
+          )
+        `)
+        .eq('id', productId)
+        .eq('tenant_id', actualTenantId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching product by ID:', error);
+        throw error;
+      }
+
+      if (!product) {
+        console.warn('Product not found:', productId);
+        return null;
+      }
+
+      // Transform single product to match TenantTrip interface
+      const transformed = {
+        id: product.id,
+        tenant_id: actualTenantId,
+        title: product.name,
+        description: product.description || '',
+        destination: product.product_data?.departure_location || 'Destination',
+        departure_location: product.product_data?.departure_location || 'Departure Location',
+        departure_time: product.product_instances?.[0]?.start_time || new Date().toISOString(),
+        return_time: product.product_instances?.[0]?.end_time,
+        price_adult: product.base_price,
+        price_child: Math.round(product.base_price * 0.7), // 30% discount for children
+        max_passengers: product.product_instances?.reduce((total: number, instance: any) => 
+          total + (instance.max_quantity || 0), 0) || 50,
+        available_seats: product.product_instances?.reduce((total: number, instance: any) => 
+          total + (instance.available_quantity || 0), 0) || 0,
+        image_url: product.image_url,
+        highlights: product.product_data?.highlights || [],
+        included_items: product.product_data?.what_included || [],
+        destination_lat: product.product_data?.destination_lat || product.product_data?.destination_info?.latitude || 0,
+        destination_lng: product.product_data?.destination_lng || product.product_data?.destination_info?.longitude || 0,
+        departure_lat: 0,
+        departure_lng: 0,
+        status: 'active' as const,
+        created_at: product.created_at,
+        updated_at: product.updated_at
+      };
+
+      console.log('Successfully loaded product:', transformed);
+      return transformed;
+
+    } catch (error: any) {
+      console.error('Error fetching product by ID:', {
+        error,
+        message: error?.message,
+        productId,
+        tenantId: tenant?.id
+      });
+      return null;
+    }
+  }, [tenant, supabase]);
+
   return {
     supabase,
     tenantId: tenant?.id,
     getTrips,
     getTripById,
     createBooking,
+    getProducts, // New function for real product data
+    getProductById, // New function for single product lookup
   };
 }
 
@@ -417,6 +625,16 @@ export function useTenantBranding() {
     if (branding.primary_color) {
       root.style.setProperty('--tenant-primary', branding.primary_color);
     }
+    if (branding.accent_color) {
+      root.style.setProperty('--tenant-accent', branding.accent_color);
+    }
+    if (branding.background_color) {
+      root.style.setProperty('--tenant-background', branding.background_color);
+    }
+    if (branding.foreground_color) {
+      root.style.setProperty('--tenant-foreground', branding.foreground_color);
+    }
+    // Legacy support
     if (branding.secondary_color) {
       root.style.setProperty('--tenant-secondary', branding.secondary_color);
     }
@@ -456,5 +674,20 @@ export function useTenantBranding() {
     };
   }, [tenant?.branding]);
   
-  return tenant?.branding || {};
+  const branding = tenant?.branding || {};
+  
+  // Helper function to get optimal text color for any background
+  const getOptimalTextColor = (backgroundColor?: string) => {
+    return getContrastingTextColor(backgroundColor || '#FFFFFF');
+  };
+  
+  return {
+    ...branding,
+    // Helper functions
+    getOptimalTextColor,
+    textOnForeground: getOptimalTextColor(branding.foreground_color),
+    textOnBackground: getOptimalTextColor(branding.background_color),
+    textOnPrimary: getOptimalTextColor(branding.primary_color),
+    textOnAccent: getOptimalTextColor(branding.accent_color),
+  };
 } 

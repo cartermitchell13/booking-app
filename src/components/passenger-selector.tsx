@@ -44,8 +44,8 @@ export function PassengerSelector({ value, onChange }: PassengerSelectorProps) {
   }
 
   const getPassengerText = () => {
-    if (totalPassengers === 1) return '1 Passenger'
-    return `${totalPassengers} Passengers`
+    if (totalPassengers === 1) return '1 Person'
+    return `${totalPassengers} People`
   }
 
   return (

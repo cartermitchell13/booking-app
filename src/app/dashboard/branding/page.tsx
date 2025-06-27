@@ -1,5 +1,48 @@
 'use client';
 
+/**
+ * TENANT BRANDING SYSTEM - COLOR USAGE GUIDE
+ * 
+ * This page allows tenants to customize their booking platform's brand colors.
+ * Here's how each color is intended to be used throughout the platform:
+ * 
+ * 🎨 PRIMARY COLOR (--tenant-primary)
+ *    • Main call-to-action buttons ("Book Now", "Search", "Submit")
+ *    • Active navigation links and selected states
+ *    • Primary icons and important interactive elements
+ *    • Form focus states and selected inputs
+ * 
+ * ✨ ACCENT COLOR (--tenant-accent) 
+ *    • Secondary buttons ("View Details", "Save", "Cancel")
+ *    • Hover states and button highlights
+ *    • Badge backgrounds and notification indicators
+ *    • Decorative elements and dividers
+ * 
+ * 🎯 BACKGROUND COLOR (--tenant-background)
+ *    • Main page background color
+ *    • Card and modal backgrounds
+ *    • Input field backgrounds
+ *    • Content area backgrounds
+ * 
+ * 📝 FOREGROUND COLOR (--tenant-foreground)
+ *    • Primary text color (headings, body text)
+ *    • Dark icons and interface elements
+ *    • Form labels and input text
+ *    • Navigation text and menu items
+ * 
+ * 🔄 LEGACY SUPPORT (--tenant-secondary)
+ *    • Maintained for backward compatibility
+ *    • Gradually being phased out in favor of accent_color
+ * 
+ * CSS VARIABLES AVAILABLE:
+ *    var(--tenant-primary)
+ *    var(--tenant-accent) 
+ *    var(--tenant-background)
+ *    var(--tenant-foreground)
+ *    var(--tenant-secondary) [legacy]
+ *    var(--tenant-font)
+ */
+
 import { useTenant, useTenantSupabase } from '@/lib/tenant-context';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +69,10 @@ export default function BrandingManagement() {
   const [brandingSettings, setBrandingSettings] = useState({
     logo_url: tenant?.branding?.logo_url || '/images/black-pb-logo.png',
     primary_color: tenant?.branding?.primary_color || '#10B981',
+    accent_color: tenant?.branding?.accent_color || '#059669',
+    background_color: tenant?.branding?.background_color || '#FFFFFF',
+    foreground_color: tenant?.branding?.foreground_color || '#111827',
+    // Legacy support
     secondary_color: tenant?.branding?.secondary_color || '#059669',
     font_family: tenant?.branding?.font_family || 'Inter',
     business_name: tenant?.name || 'ParkBus',
@@ -49,6 +96,9 @@ export default function BrandingManagement() {
       setBrandingSettings({
         logo_url: tenant.branding?.logo_url || '/images/black-pb-logo.png',
         primary_color: tenant.branding?.primary_color || '#10B981',
+        accent_color: tenant.branding?.accent_color || '#059669',
+        background_color: tenant.branding?.background_color || '#FFFFFF',
+        foreground_color: tenant.branding?.foreground_color || '#111827',
         secondary_color: tenant.branding?.secondary_color || '#059669',
         font_family: tenant.branding?.font_family || 'Inter',
         business_name: tenant.name || 'ParkBus',
@@ -63,9 +113,12 @@ export default function BrandingManagement() {
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--tenant-primary', brandingSettings.primary_color);
-    root.style.setProperty('--tenant-secondary', brandingSettings.secondary_color);
+    root.style.setProperty('--tenant-accent', brandingSettings.accent_color);
+    root.style.setProperty('--tenant-background', brandingSettings.background_color);
+    root.style.setProperty('--tenant-foreground', brandingSettings.foreground_color);
+    root.style.setProperty('--tenant-secondary', brandingSettings.secondary_color); // Legacy support
     root.style.setProperty('--tenant-font', brandingSettings.font_family);
-  }, [brandingSettings.primary_color, brandingSettings.secondary_color, brandingSettings.font_family]);
+  }, [brandingSettings.primary_color, brandingSettings.accent_color, brandingSettings.background_color, brandingSettings.foreground_color, brandingSettings.secondary_color, brandingSettings.font_family]);
 
   const handleChange = (key: string, value: string) => {
     setBrandingSettings(prev => ({ ...prev, [key]: value }));
@@ -98,7 +151,10 @@ export default function BrandingManagement() {
       const updatedBranding = {
         ...tenant.branding, // Preserve other branding settings FIRST
         primary_color: brandingSettings.primary_color, // Then override with new values
-        secondary_color: brandingSettings.secondary_color,
+        accent_color: brandingSettings.accent_color,
+        background_color: brandingSettings.background_color,
+        foreground_color: brandingSettings.foreground_color,
+        secondary_color: brandingSettings.secondary_color, // Legacy support
         logo_url: brandingSettings.logo_url,
         font_family: brandingSettings.font_family,
       };
@@ -181,6 +237,9 @@ export default function BrandingManagement() {
       setBrandingSettings({
         logo_url: tenant.branding?.logo_url || '/images/black-pb-logo.png',
         primary_color: tenant.branding?.primary_color || '#10B981',
+        accent_color: tenant.branding?.accent_color || '#059669',
+        background_color: tenant.branding?.background_color || '#FFFFFF',
+        foreground_color: tenant.branding?.foreground_color || '#111827',
         secondary_color: tenant.branding?.secondary_color || '#059669',
         font_family: tenant.branding?.font_family || 'Inter',
         business_name: tenant.name || 'ParkBus',
@@ -315,11 +374,12 @@ export default function BrandingManagement() {
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Palette className="w-5 h-5 mr-2" />
-              Colors
+              Brand Colors
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
+                <p className="text-xs text-gray-500 mb-2">Main buttons, links, and key interactive elements</p>
                 <div className="flex items-center space-x-2">
                   <input
                     type="color"
@@ -331,24 +391,68 @@ export default function BrandingManagement() {
                     type="text"
                     value={brandingSettings.primary_color}
                     onChange={(e) => handleChange('primary_color', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                    placeholder="#10B981"
                   />
                 </div>
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Color</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Accent Color</label>
+                <p className="text-xs text-gray-500 mb-2">Secondary buttons, highlights, and decorative elements</p>
                 <div className="flex items-center space-x-2">
                   <input
                     type="color"
-                    value={brandingSettings.secondary_color}
-                    onChange={(e) => handleChange('secondary_color', e.target.value)}
+                    value={brandingSettings.accent_color}
+                    onChange={(e) => handleChange('accent_color', e.target.value)}
                     className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
                   />
                   <input
                     type="text"
-                    value={brandingSettings.secondary_color}
-                    onChange={(e) => handleChange('secondary_color', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    value={brandingSettings.accent_color}
+                    onChange={(e) => handleChange('accent_color', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                    placeholder="#059669"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Background Color</label>
+                <p className="text-xs text-gray-500 mb-2">Main page background and card backgrounds</p>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="color"
+                    value={brandingSettings.background_color}
+                    onChange={(e) => handleChange('background_color', e.target.value)}
+                    className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={brandingSettings.background_color}
+                    onChange={(e) => handleChange('background_color', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                    placeholder="#FFFFFF"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Foreground Color</label>
+                <p className="text-xs text-gray-500 mb-2">Card backgrounds and content areas that sit above the main background</p>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="color"
+                    value={brandingSettings.foreground_color}
+                    onChange={(e) => handleChange('foreground_color', e.target.value)}
+                    className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={brandingSettings.foreground_color}
+                    onChange={(e) => handleChange('foreground_color', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                    placeholder="#111827"
                   />
                 </div>
               </div>

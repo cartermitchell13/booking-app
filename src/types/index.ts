@@ -94,6 +94,10 @@ export interface Tenant {
 
 export interface BrandingConfig {
   primary_color?: string;
+  accent_color?: string;
+  background_color?: string;
+  foreground_color?: string;
+  // Legacy: keep for backward compatibility
   secondary_color?: string;
   logo_url?: string;
   favicon_url?: string;

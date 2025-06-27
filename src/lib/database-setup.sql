@@ -41,7 +41,10 @@ INSERT INTO tenants (
   'ParkBus',
   '{
     "primary_color": "#10B981",
-    "secondary_color": "#059669", 
+    "accent_color": "#059669",
+    "background_color": "#FFFFFF",
+    "foreground_color": "#111827",
+    "secondary_color": "#059669",
     "logo_url": "/images/black-pb-logo.png",
     "font_family": "Inter"
   }'::jsonb,

@@ -21,8 +21,18 @@ interface AuthContextType {
   user: AuthUser | null;
   session: Session | null;
   isLoading: boolean;
+  /** true if a user is present and session is valid */
+  isAuthenticated: boolean;
+  /** convenience current role (null if not logged in) */
+  role: AuthUser['role'] | null;
+  /** convenience current tenant id (null if not logged in) */
+  tenantId: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, userData: { firstName: string; lastName: string; phone?: string; role?: 'customer' | 'tenant_admin' }) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    userData: { firstName: string; lastName: string; phone?: string; role?: 'customer' | 'tenant_admin' }
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -31,6 +41,9 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   isLoading: true,
+  isAuthenticated: false,
+  role: null,
+  tenantId: null,
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
@@ -232,11 +245,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     session,
     isLoading,
+    isAuthenticated: !!user,
+    role: user?.role || null,
+    tenantId: user?.tenant_id || null,
     signIn,
     signUp,
     signOut,
     resetPassword,
-  };
+  } as const;
 
   return (
     <AuthContext.Provider value={value}>

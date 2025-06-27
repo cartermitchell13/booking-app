@@ -80,15 +80,6 @@ export default function TenantAdminHeader() {
           <div className="relative">
             <button className="flex items-center px-3 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
               <div className="flex items-center">
-                {tenant?.branding?.logo_url ? (
-                  <img 
-                    src={tenant.branding.logo_url} 
-                    alt={`${tenant.name} logo`}
-                    className="w-5 h-5 mr-2 rounded"
-                  />
-                ) : (
-                  <div className="w-5 h-5 mr-2 bg-gray-300 rounded"></div>
-                )}
                 <span className="font-medium">{tenant?.name || 'Business'}</span>
               </div>
               <MoreVertical className="w-4 h-4 ml-2" />

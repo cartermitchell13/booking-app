@@ -13,7 +13,6 @@ import {
   CreditCard,
   FileText,
   MessageSquare,
-  Package,
   Building2
 } from 'lucide-react';
 
@@ -41,12 +40,6 @@ const navigation = [
     href: '/dashboard/customers',
     icon: Users,
     description: 'Customer Management'
-  },
-  {
-    name: 'Products',
-    href: '/dashboard/products',
-    icon: Package,
-    description: 'Product Catalog'
   },
   {
     name: 'Team',
@@ -98,18 +91,19 @@ export default function TenantAdminSidebar() {
   return (
     <div className="flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen">
       {/* Tenant Logo & Info */}
-      <div className="flex items-center px-6 py-6 border-b border-gray-200">
+      <div className="flex flex-col items-center px-6 py-0 border-b border-gray-200">
         {tenant?.branding?.logo_url ? (
-          <img 
-            src={tenant.branding.logo_url} 
-            alt={`${tenant.name} logo`}
-            className="w-10 h-10 mr-3"
-          />
+          <div className="w-24 h-24 -mb-6 flex-shrink-0">
+            <img 
+              src={tenant.branding.logo_url} 
+              alt={`${tenant.name} logo`}
+              className="w-full h-full object-contain"
+            />
+          </div>
         ) : (
-          <Building2 className="w-10 h-10 text-gray-600 mr-3" />
+          <Building2 className="w-20 h-20 text-gray-600 -mb-1 flex-shrink-0" />
         )}
-        <div>
-          <h1 className="text-gray-900 font-bold text-lg">{tenant?.name || 'Business'}</h1>
+        <div className="text-center">
           <p className="text-gray-500 text-sm">Admin Dashboard</p>
         </div>
       </div>
