@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { GeistSans } from 'geist/font/sans';
 import { 
   Building, 
   Users, 
@@ -57,7 +58,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col w-64 bg-gray-900 min-h-screen">
+    <div className={`flex flex-col w-64 bg-gray-900 min-h-screen ${GeistSans.className}`}>
       {/* Logo */}
       <div className="flex items-center px-4 py-6">
         <Shield className="w-8 h-8 text-white mr-3" />

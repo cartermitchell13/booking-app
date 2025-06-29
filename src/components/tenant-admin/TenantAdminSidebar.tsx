@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/lib/tenant-context';
+import { GeistSans } from 'geist/font/sans';
 import { 
   BarChart3, 
   Calendar, 
@@ -79,7 +80,7 @@ export default function TenantAdminSidebar() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen">
+      <div className={`flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen ${GeistSans.className}`}>
         <div className="animate-pulse p-6">
           <div className="h-8 bg-gray-200 rounded mb-2"></div>
           <div className="h-4 bg-gray-200 rounded"></div>
@@ -89,7 +90,7 @@ export default function TenantAdminSidebar() {
   }
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen">
+    <div className={`flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen ${GeistSans.className}`}>
       {/* Tenant Logo & Info */}
       <div className="flex flex-col items-center px-6 py-0 border-b border-gray-200">
         {tenant?.branding?.logo_url ? (

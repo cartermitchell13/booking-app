@@ -41,6 +41,7 @@
  *    var(--tenant-foreground)
  *    var(--tenant-secondary) [legacy]
  *    var(--tenant-font)
+ *    var(--tenant-custom-font) [custom uploaded fonts]
  */
 
 import { useTenant, useTenantSupabase } from '@/lib/tenant-context';
@@ -58,13 +59,16 @@ import {
   Smartphone,
   Globe,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  X
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function BrandingManagement() {
   const { tenant, isLoading, refreshTenant } = useTenant();
   const { supabase } = useTenantSupabase();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [brandingSettings, setBrandingSettings] = useState({
     logo_url: tenant?.branding?.logo_url || '/images/black-pb-logo.png',
@@ -75,6 +79,9 @@ export default function BrandingManagement() {
     // Legacy support
     secondary_color: tenant?.branding?.secondary_color || '#059669',
     font_family: tenant?.branding?.font_family || 'Inter',
+    custom_font_url: tenant?.branding?.custom_font_url || '',
+    custom_font_name: tenant?.branding?.custom_font_name || '',
+    custom_font_family: tenant?.branding?.custom_font_family || '',
     business_name: tenant?.name || 'ParkBus',
     tagline: 'Discover Amazing Adventures',
     contact_email: 'hello@parkbus.ca'
@@ -84,8 +91,10 @@ export default function BrandingManagement() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
+  const [fontUploadStatus, setFontUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  const fontOptions = ['Inter', 'Roboto', 'Open Sans', 'Poppins', 'Montserrat'];
+  const fontOptions = ['Inter', 'Roboto', 'Open Sans', 'Poppins', 'Montserrat', 'Custom Font'];
 
   // Track if we've initialized from tenant data to prevent constant resets
   const [isInitialized, setIsInitialized] = useState(false);
@@ -101,6 +110,9 @@ export default function BrandingManagement() {
         foreground_color: tenant.branding?.foreground_color || '#111827',
         secondary_color: tenant.branding?.secondary_color || '#059669',
         font_family: tenant.branding?.font_family || 'Inter',
+        custom_font_url: tenant.branding?.custom_font_url || '',
+        custom_font_name: tenant.branding?.custom_font_name || '',
+        custom_font_family: tenant.branding?.custom_font_family || '',
         business_name: tenant.name || 'ParkBus',
         tagline: 'Discover Amazing Adventures',
         contact_email: 'hello@parkbus.ca'
@@ -117,11 +129,175 @@ export default function BrandingManagement() {
     root.style.setProperty('--tenant-background', brandingSettings.background_color);
     root.style.setProperty('--tenant-foreground', brandingSettings.foreground_color);
     root.style.setProperty('--tenant-secondary', brandingSettings.secondary_color); // Legacy support
-    root.style.setProperty('--tenant-font', brandingSettings.font_family);
-  }, [brandingSettings.primary_color, brandingSettings.accent_color, brandingSettings.background_color, brandingSettings.foreground_color, brandingSettings.secondary_color, brandingSettings.font_family]);
+    
+    // Handle font family - use custom font if available, otherwise use selected font
+    let fontFamily = brandingSettings.font_family || 'Inter';
+    
+    // If custom font is configured, use it with proper fallbacks
+    if (brandingSettings.font_family === 'Custom Font' && brandingSettings.custom_font_family) {
+      fontFamily = `'${brandingSettings.custom_font_family}', 'Inter', sans-serif`;
+    } else {
+      // Use standard font with proper fallbacks
+      if (fontFamily === 'Inter') fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      else if (fontFamily === 'Roboto') fontFamily = "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      else if (fontFamily === 'Open Sans') fontFamily = "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      else if (fontFamily === 'Poppins') fontFamily = "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      else if (fontFamily === 'Montserrat') fontFamily = "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    }
+    
+    root.style.setProperty('--tenant-font', fontFamily);
+    console.log('🎨 Branding page set --tenant-font to:', fontFamily);
+    
+    // Generate custom font CSS if we have a custom font
+    if (brandingSettings.custom_font_url && brandingSettings.custom_font_family) {
+      const existingStyle = document.getElementById('custom-font-style');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+      
+      const style = document.createElement('style');
+      style.id = 'custom-font-style';
+      style.textContent = `
+        @font-face {
+          font-family: '${brandingSettings.custom_font_family}';
+          src: url('${brandingSettings.custom_font_url}') format('truetype'),
+               url('${brandingSettings.custom_font_url}') format('opentype'),
+               url('${brandingSettings.custom_font_url}') format('woff2'),
+               url('${brandingSettings.custom_font_url}') format('woff');
+          font-display: swap;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, [brandingSettings.primary_color, brandingSettings.accent_color, brandingSettings.background_color, brandingSettings.foreground_color, brandingSettings.secondary_color, brandingSettings.font_family, brandingSettings.custom_font_url, brandingSettings.custom_font_family]);
 
   const handleChange = (key: string, value: string) => {
     setBrandingSettings(prev => ({ ...prev, [key]: value }));
+    setHasChanges(true);
+    setSaveStatus(null);
+  };
+
+  const handleFontUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !supabase || !tenant?.id) {
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['.ttf', '.otf', '.woff', '.woff2'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    
+    if (!allowedTypes.includes(fileExtension)) {
+      alert('Please upload a valid font file (.ttf, .otf, .woff, .woff2)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Font file must be smaller than 5MB');
+      return;
+    }
+
+    setFontUploadStatus('uploading');
+    setUploadProgress(0);
+
+    try {
+      // Debug information
+      console.log('🔤 Starting font upload:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        tenantId: tenant.id,
+        hasSupabase: !!supabase
+      });
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '');
+      const fileName = `fonts/${tenant.id}/${timestamp}-${sanitizedName}`;
+
+      console.log('🔤 Generated file path:', fileName);
+
+      // Skip bucket verification since we know it exists - go straight to upload
+      console.log('⬆️ Starting direct file upload to tenant-assets bucket...');
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('tenant-assets')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('❌ Font upload error:', {
+          uploadError,
+          errorMessage: uploadError.message,
+          tenantId: tenant?.id,
+          fileName: fileName,
+          fileSize: file.size,
+          fullError: JSON.stringify(uploadError, null, 2)
+        });
+        throw uploadError;
+      }
+
+      console.log('✅ Font uploaded successfully:', uploadData);
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('tenant-assets')
+        .getPublicUrl(fileName);
+
+      console.log('🌐 Font public URL:', publicUrl);
+
+      // Generate font family name from filename
+      const fontFamilyName = file.name
+        .replace(/\.[^/.]+$/, '') // Remove extension
+        .replace(/[^a-zA-Z0-9]/g, '') // Remove special characters
+        .replace(/^\d/, 'Font$&'); // Ensure doesn't start with number
+
+      // Update branding settings
+      setBrandingSettings(prev => ({
+        ...prev,
+        custom_font_url: publicUrl,
+        custom_font_name: file.name,
+        custom_font_family: fontFamilyName,
+        font_family: 'Custom Font' // Auto-select custom font
+      }));
+
+      setHasChanges(true);
+      setFontUploadStatus('success');
+      setSaveStatus(null);
+
+      // Clear success status after 3 seconds
+      setTimeout(() => setFontUploadStatus('idle'), 3000);
+
+    } catch (error) {
+      console.error('❌ Font upload failed:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        tenantId: tenant?.id,
+        fileName: file?.name,
+        fileSize: file?.size
+      });
+      setFontUploadStatus('error');
+      setTimeout(() => setFontUploadStatus('idle'), 3000);
+    } finally {
+      setUploadProgress(0);
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveCustomFont = () => {
+    setBrandingSettings(prev => ({
+      ...prev,
+      custom_font_url: '',
+      custom_font_name: '',
+      custom_font_family: '',
+      font_family: 'Inter' // Reset to default
+    }));
     setHasChanges(true);
     setSaveStatus(null);
   };
@@ -157,6 +333,9 @@ export default function BrandingManagement() {
         secondary_color: brandingSettings.secondary_color, // Legacy support
         logo_url: brandingSettings.logo_url,
         font_family: brandingSettings.font_family,
+        custom_font_url: brandingSettings.custom_font_url,
+        custom_font_name: brandingSettings.custom_font_name,
+        custom_font_family: brandingSettings.custom_font_family,
       };
 
       console.log('📝 Attempting to save branding:', {
@@ -242,6 +421,9 @@ export default function BrandingManagement() {
         foreground_color: tenant.branding?.foreground_color || '#111827',
         secondary_color: tenant.branding?.secondary_color || '#059669',
         font_family: tenant.branding?.font_family || 'Inter',
+        custom_font_url: tenant.branding?.custom_font_url || '',
+        custom_font_name: tenant.branding?.custom_font_name || '',
+        custom_font_family: tenant.branding?.custom_font_family || '',
         business_name: tenant.name || 'ParkBus',
         tagline: 'Discover Amazing Adventures',
         contact_email: 'hello@parkbus.ca'
@@ -329,6 +511,40 @@ export default function BrandingManagement() {
             <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
             <Badge className="bg-red-100 text-red-800">
               Error saving settings. Please try again.
+            </Badge>
+          </div>
+        </div>
+      )}
+
+      {/* Font Upload Status */}
+      {fontUploadStatus === 'uploading' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="w-5 h-5 mr-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <Badge className="bg-blue-100 text-blue-800">
+              Uploading font file...
+            </Badge>
+          </div>
+        </div>
+      )}
+
+      {fontUploadStatus === 'success' && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+            <Badge className="bg-green-100 text-green-800">
+              Font uploaded successfully! Don't forget to save your changes.
+            </Badge>
+          </div>
+        </div>
+      )}
+
+      {fontUploadStatus === 'error' && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
+            <Badge className="bg-red-100 text-red-800">
+              Error uploading font. Please try again.
             </Badge>
           </div>
         </div>
@@ -465,7 +681,7 @@ export default function BrandingManagement() {
               <Type className="w-5 h-5 mr-2" />
               Typography & Info
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
                 <select
@@ -478,6 +694,57 @@ export default function BrandingManagement() {
                   ))}
                 </select>
               </div>
+
+              {/* Custom Font Upload Section */}
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-gray-700">Custom Font Upload</label>
+                  {brandingSettings.custom_font_name && (
+                    <button
+                      onClick={handleRemoveCustomFont}
+                      className="text-red-600 hover:text-red-700 text-sm flex items-center"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Remove
+                    </button>
+                  )}
+                </div>
+                
+                {!brandingSettings.custom_font_name ? (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".ttf,.otf,.woff,.woff2"
+                      onChange={handleFontUpload}
+                      className="hidden"
+                      disabled={fontUploadStatus === 'uploading'}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={fontUploadStatus === 'uploading'}
+                      className="flex items-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm hover:border-gray-400 hover:bg-gray-50 transition-colors w-full justify-center disabled:opacity-50"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      {fontUploadStatus === 'uploading' ? 'Uploading...' : 'Upload Font File'}
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Supports TTF, OTF, WOFF, WOFF2 files up to 5MB
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center">
+                      <FileText className="w-4 h-4 text-green-600 mr-2" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-green-800">{brandingSettings.custom_font_name}</p>
+                        <p className="text-xs text-green-600">Font Family: {brandingSettings.custom_font_family}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
                 <input
@@ -529,7 +796,9 @@ export default function BrandingManagement() {
                 className="p-4 border-b"
                 style={{ 
                   backgroundColor: brandingSettings.primary_color,
-                  fontFamily: brandingSettings.font_family 
+                  fontFamily: brandingSettings.font_family === 'Custom Font' && brandingSettings.custom_font_family 
+                    ? brandingSettings.custom_font_family 
+                    : brandingSettings.font_family
                 }}
               >
                 <div className="flex items-center space-x-3">
@@ -545,7 +814,15 @@ export default function BrandingManagement() {
                 </div>
               </div>
               
-              <div className="p-4 bg-white">
+              <div 
+                className="p-4"
+                style={{ 
+                  backgroundColor: brandingSettings.background_color,
+                  fontFamily: brandingSettings.font_family === 'Custom Font' && brandingSettings.custom_font_family 
+                    ? brandingSettings.custom_font_family 
+                    : brandingSettings.font_family
+                }}
+              >
                 <div className="space-y-3">
                   <button 
                     className="w-full py-2 px-4 rounded-md text-white text-sm font-medium transition-colors hover:opacity-90"
@@ -556,8 +833,8 @@ export default function BrandingManagement() {
                   <button 
                     className="w-full py-2 px-4 rounded-md text-sm font-medium border transition-colors hover:bg-gray-50"
                     style={{ 
-                      color: brandingSettings.primary_color,
-                      borderColor: brandingSettings.primary_color 
+                      color: brandingSettings.accent_color,
+                      borderColor: brandingSettings.accent_color 
                     }}
                   >
                     Learn More
@@ -565,11 +842,18 @@ export default function BrandingManagement() {
                   <div className="text-center">
                     <span 
                       className="text-sm font-medium"
-                      style={{ color: brandingSettings.secondary_color }}
+                      style={{ color: brandingSettings.accent_color }}
                     >
                       Starting from $99
                     </span>
                   </div>
+                  {brandingSettings.custom_font_name && (
+                    <div className="text-center pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-500">
+                        Using custom font: {brandingSettings.custom_font_family}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -254,7 +254,10 @@ export default function TripDetailPage() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-3xl font-bold mb-2" style={{ color: branding.textOnForeground }}>{trip.title}</h1>
+                  <h1 className="text-3xl font-bold mb-2" style={{ 
+                    color: branding.textOnForeground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>{trip.title}</h1>
                   <p className="flex items-center mb-2" style={{ color: branding.textOnForeground }}>
                     <MapPin className="w-5 h-5 mr-2" />
                     {trip.destination}
@@ -299,7 +302,10 @@ export default function TripDetailPage() {
                 borderColor: branding.accent_color || '#637752'
               }}
             >
-              <h2 className="text-2xl font-bold mb-4" style={{ color: branding.textOnForeground }}>Trip Highlights</h2>
+              <h2 className="text-2xl font-bold mb-4" style={{ 
+                color: branding.textOnForeground,
+                fontFamily: `var(--tenant-font, 'Inter')`
+              }}>Trip Highlights</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(trip.highlights || [
                   "Guided nature walks with expert naturalists",
@@ -328,7 +334,10 @@ export default function TripDetailPage() {
                 borderColor: branding.accent_color || '#637752'
               }}
             >
-              <h2 className="text-2xl font-bold mb-4" style={{ color: branding.textOnForeground }}>What's Included</h2>
+              <h2 className="text-2xl font-bold mb-4" style={{ 
+                color: branding.textOnForeground,
+                fontFamily: `var(--tenant-font, 'Inter')`
+              }}>What's Included</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(trip.included_items || [
                   "Professional guide",

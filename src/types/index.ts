@@ -93,15 +93,17 @@ export interface Tenant {
 }
 
 export interface BrandingConfig {
-  primary_color?: string;
-  accent_color?: string;
-  background_color?: string;
-  foreground_color?: string;
-  // Legacy: keep for backward compatibility
-  secondary_color?: string;
+  primary_color?: string;      // Main buttons, links, key interactions
+  accent_color?: string;       // Secondary buttons, highlights
+  background_color?: string;   // Page/card backgrounds  
+  foreground_color?: string;   // Text color, dark elements
+  secondary_color?: string;    // Legacy support
   logo_url?: string;
   favicon_url?: string;
   font_family?: string;
+  custom_font_url?: string;    // URL to uploaded custom font file
+  custom_font_name?: string;   // Original filename of uploaded font
+  custom_font_family?: string; // Generated CSS font-family name
   custom_css?: string;
 }
 

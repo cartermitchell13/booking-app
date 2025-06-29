@@ -216,7 +216,7 @@ export default function SearchPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Search Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Your Perfect Adventure</h1>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>Find Your Perfect Adventure</h1>
           <p className="text-gray-600">
             {filteredAndSortedTrips.length} {filteredAndSortedTrips.length === 1 ? 'trip' : 'trips'} available
             {filters.destination && ` in ${filters.destination}`}
@@ -228,7 +228,7 @@ export default function SearchPage() {
           <div className={`${showFilters ? 'block' : 'hidden'} lg:block w-full lg:w-80 lg:flex-shrink-0`}>
             <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-100 h-fit sticky top-4">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-gray-900">Filters</h3>
+                <h3 className="font-semibold text-gray-900" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>Filters</h3>
                 <button
                   onClick={clearFilters}
                   className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
@@ -393,7 +393,7 @@ export default function SearchPage() {
                         {/* Selected Trip Details (below map) */}
                         {selectedTripId && (
                           <div className="mt-6">
-                            <h3 className="text-lg font-semibold mb-4">Selected Trip</h3>
+                            <h3 className="text-lg font-semibold mb-4" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>Selected Trip</h3>
                             {filteredAndSortedTrips
                               .filter(trip => trip.id === selectedTripId)
                               .map((trip) => (
@@ -412,7 +412,7 @@ export default function SearchPage() {
                 ) : (
                   <div className="text-center py-12">
                     <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No trips found</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>No trips found</h3>
                     <p className="text-gray-600 mb-4">
                       Try adjusting your filters or search terms
                     </p>

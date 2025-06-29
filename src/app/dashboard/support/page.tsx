@@ -24,133 +24,12 @@ import {
   LifeBuoy,
   MessageCircle,
   Plus,
-  Send
+  Send,
+  RefreshCw
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-// Mock support data
-const mockSupportData = {
-  tickets: [
-    {
-      id: 'TICK-001',
-      subject: 'Booking Cancellation Request',
-      customer: {
-        name: 'John Smith',
-        email: 'john.smith@example.com',
-        phone: '+1 (555) 123-4567',
-        bookingId: 'BK-2024-001'
-      },
-      status: 'open',
-      priority: 'high',
-      category: 'booking',
-      description: 'Customer wants to cancel their Banff tour booking due to weather concerns.',
-      createdAt: '2024-01-22 09:30:00',
-      updatedAt: '2024-01-22 14:20:00',
-      assignedTo: 'Emily Chen',
-      messages: [
-        {
-          id: '1',
-          sender: 'customer',
-          message: 'Hi, I need to cancel my booking for the Banff tour on Jan 25th due to the weather forecast.',
-          timestamp: '2024-01-22 09:30:00'
-        },
-        {
-          id: '2',
-          sender: 'support',
-          message: 'Hi John, I understand your concern about the weather. Let me check our cancellation policy for you.',
-          timestamp: '2024-01-22 14:20:00'
-        }
-      ]
-    },
-    {
-      id: 'TICK-002',
-      subject: 'Payment Issue',
-      customer: {
-        name: 'Sarah Wilson',
-        email: 'sarah.wilson@example.com',
-        phone: '+1 (555) 234-5678',
-        bookingId: 'BK-2024-002'
-      },
-      status: 'pending',
-      priority: 'medium',
-      category: 'payment',
-      description: 'Customer\'s payment failed and they need assistance with rebooking.',
-      createdAt: '2024-01-21 16:45:00',
-      updatedAt: '2024-01-22 08:15:00',
-      assignedTo: 'Mike Rodriguez',
-      messages: [
-        {
-          id: '1',
-          sender: 'customer',
-          message: 'My payment was declined but I\'m not sure why. Can you help me rebook?',
-          timestamp: '2024-01-21 16:45:00'
-        }
-      ]
-    },
-    {
-      id: 'TICK-003',
-      subject: 'Tour Information Request',
-      customer: {
-        name: 'David Chen',
-        email: 'david.chen@example.com',
-        phone: '+1 (555) 345-6789',
-        bookingId: null
-      },
-      status: 'resolved',
-      priority: 'low',
-      category: 'general',
-      description: 'Customer asking about what to bring on the Lake Louise tour.',
-      createdAt: '2024-01-20 11:20:00',
-      updatedAt: '2024-01-20 13:45:00',
-      assignedTo: 'Emily Chen',
-      messages: [
-        {
-          id: '1',
-          sender: 'customer',
-          message: 'What should I bring for the Lake Louise day trip?',
-          timestamp: '2024-01-20 11:20:00'
-        },
-        {
-          id: '2',
-          sender: 'support',
-          message: 'Great question! I recommend bringing warm clothes, comfortable walking shoes, a camera, and sunglasses. We provide lunch and hot beverages.',
-          timestamp: '2024-01-20 13:45:00'
-        }
-      ]
-    }
-  ],
-  stats: {
-    totalTickets: 45,
-    openTickets: 12,
-    pendingTickets: 8,
-    resolvedTickets: 25,
-    avgResponseTime: '2.4 hours',
-    satisfaction: 4.8
-  },
-  knowledgeBase: [
-    {
-      id: '1',
-      title: 'Booking Cancellation Policy',
-      category: 'Policies',
-      views: 234,
-      lastUpdated: '2024-01-15'
-    },
-    {
-      id: '2',
-      title: 'What to Bring on Tours',
-      category: 'Tour Info',
-      views: 567,
-      lastUpdated: '2024-01-10'
-    },
-    {
-      id: '3',
-      title: 'Payment and Refund Process',
-      category: 'Billing',
-      views: 189,
-      lastUpdated: '2024-01-08'
-    }
-  ]
-};
+// Color mappings for ticket statuses and categories
 
 const statusColors = {
   open: 'bg-blue-100 text-blue-800',
@@ -175,8 +54,50 @@ const categoryColors = {
 
 export default function SupportManagement() {
   const { tenant, isLoading } = useTenant();
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch support tickets
+  const fetchTickets = async () => {
+    if (!tenant?.id) return;
+    
+    try {
+      setTicketsLoading(true);
+      const response = await fetch(`/api/support/tickets?tenant_id=${tenant.id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch tickets');
+      }
+      
+      const data = await response.json();
+      setTickets(data.tickets || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching tickets:', err);
+      setError('Failed to load support tickets');
+    } finally {
+      setTicketsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tenant?.id && !isLoading) {
+      fetchTickets();
+    }
+  }, [tenant?.id, isLoading]);
+
+  // Calculate stats from real tickets
+  const stats = {
+    totalTickets: tickets.length,
+    openTickets: tickets.filter(t => t.status === 'open').length,
+    pendingTickets: tickets.filter(t => t.status === 'pending').length,
+    resolvedTickets: tickets.filter(t => t.status === 'resolved').length,
+    avgResponseTime: '2.4 hours', // This would need more complex calculation
+    satisfaction: 4.8 // This would come from customer feedback
+  };
   
-  if (isLoading) {
+  if (isLoading || ticketsLoading) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
@@ -191,18 +112,169 @@ export default function SupportManagement() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-20">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Support Tickets</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchTickets}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
-      <div className="text-center py-20">
-        <LifeBuoy className="w-24 h-24 text-gray-400 mx-auto mb-6" />
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Customer Support</h1>
-        <p className="text-gray-600 text-lg mb-8">
-          Manage customer inquiries, tickets, and support resources
-        </p>
-        <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
-          Coming Soon
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Customer Support</h1>
+          <p className="text-gray-600 mt-1">
+            Manage customer inquiries and support tickets
+          </p>
+        </div>
+        <button
+          onClick={fetchTickets}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh
         </button>
       </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Tickets</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.totalTickets}</p>
+            </div>
+            <MessageSquare className="h-8 w-8 text-blue-600" />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Open</p>
+              <p className="text-3xl font-bold text-blue-600">{stats.openTickets}</p>
+            </div>
+            <AlertCircle className="h-8 w-8 text-blue-600" />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Pending</p>
+              <p className="text-3xl font-bold text-yellow-600">{stats.pendingTickets}</p>
+            </div>
+            <Clock className="h-8 w-8 text-yellow-600" />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Resolved</p>
+              <p className="text-3xl font-bold text-green-600">{stats.resolvedTickets}</p>
+            </div>
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+        </Card>
+      </div>
+
+      {/* Tickets List */}
+      <Card className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Recent Support Tickets</h2>
+          <div className="flex space-x-2">
+            <button className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <Search className="w-4 h-4 mr-2" />
+              Search
+            </button>
+            <button className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <Filter className="w-4 h-4 mr-2" />
+              Filter
+            </button>
+          </div>
+        </div>
+
+        {tickets.length === 0 ? (
+          <div className="text-center py-12">
+            <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Support Tickets Yet</h3>
+            <p className="text-gray-600">
+              When customers submit contact forms, they'll appear here as support tickets.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {tickets.map((ticket) => (
+              <div
+                key={ticket.id}
+                className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3">
+                      <h3 className="font-medium text-gray-900">{ticket.subject}</h3>
+                      <Badge className={statusColors[ticket.status as keyof typeof statusColors]}>
+                        {ticket.status}
+                      </Badge>
+                      <Badge className={priorityColors[ticket.priority as keyof typeof priorityColors]}>
+                        {ticket.priority}
+                      </Badge>
+                      <Badge className={categoryColors[ticket.category as keyof typeof categoryColors]}>
+                        {ticket.category}
+                      </Badge>
+                    </div>
+                    
+                    <div className="mt-2 flex items-center space-x-4 text-sm text-gray-600">
+                      <span className="flex items-center">
+                        <User className="w-4 h-4 mr-1" />
+                        {ticket.customer_name}
+                      </span>
+                      <span className="flex items-center">
+                        <Mail className="w-4 h-4 mr-1" />
+                        {ticket.customer_email}
+                      </span>
+                      <span className="flex items-center">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        {new Date(ticket.created_at).toLocaleDateString()}
+                      </span>
+                      <span className="flex items-center">
+                        <MessageSquare className="w-4 h-4 mr-1" />
+                        Ticket #{ticket.ticket_number}
+                      </span>
+                    </div>
+                    
+                    <p className="mt-2 text-gray-700 line-clamp-2">{ticket.description}</p>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                      <Reply className="w-4 h-4" />
+                    </button>
+                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 } 

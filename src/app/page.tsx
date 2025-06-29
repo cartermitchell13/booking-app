@@ -24,16 +24,41 @@ const TripMap = dynamic(() => import('@/components/map/TripMap'), {
 
 export default function HomePage() {
   const [trips, setTrips] = useState<TenantTrip[]>([])
+  const [filteredTrips, setFilteredTrips] = useState<TenantTrip[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>()
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map' | 'calendar'>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedTripId, setSelectedTripId] = useState<string>()
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    priceRange: 'any',
+    duration: 'any',
+    category: 'any',
+    availability: 'any'
+  })
 
   const { tenant, isLoading: tenantLoading } = useTenant()
   const { getProducts } = useTenantSupabase()
   const branding = useTenantBranding()
+
+  // Debug font loading
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const root = document.documentElement;
+      const currentFontVar = getComputedStyle(root).getPropertyValue('--tenant-font');
+      console.log('🔍 Font debugging:', {
+        tenantName: tenant?.name,
+        brandingFontFamily: tenant?.branding?.font_family,
+        customFontFamily: tenant?.branding?.custom_font_family,
+        customFontUrl: tenant?.branding?.custom_font_url,
+        cssFontVariable: currentFontVar,
+        testElementFont: getComputedStyle(document.body).fontFamily
+      });
+    }
+  }, [tenant?.branding, branding]);
 
   // Load trips from database (using new products system)
   useEffect(() => {
@@ -47,6 +72,7 @@ export default function HomePage() {
         const tripData = await getProducts()
         console.log('Successfully loaded trip data:', tripData)
         setTrips(tripData || [])
+        setFilteredTrips(tripData || [])
       } catch (err: any) {
         console.error('Error loading trips (detailed):', {
           error: err,
@@ -79,6 +105,87 @@ export default function HomePage() {
 
     loadTrips()
   }, [tenant, tenantLoading, getProducts])
+
+  // Filter trips based on current filter state
+  useEffect(() => {
+    let filtered = [...trips]
+
+    // Price range filter
+    if (filters.priceRange !== 'any') {
+      filtered = filtered.filter(trip => {
+        const price = trip.price_adult / 100 // Convert cents to dollars
+        switch (filters.priceRange) {
+          case 'under-100': return price < 100
+          case '100-200': return price >= 100 && price <= 200
+          case '200-500': return price >= 200 && price <= 500
+          case 'over-500': return price > 500
+          default: return true
+        }
+      })
+    }
+
+    // Duration filter (rough estimate based on departure/return times)
+    if (filters.duration !== 'any') {
+      filtered = filtered.filter(trip => {
+        if (!trip.return_time) return filters.duration === 'half-day' // Assume no return time means short trip
+        
+        const departure = new Date(trip.departure_time)
+        const returnTime = new Date(trip.return_time)
+        const durationHours = (returnTime.getTime() - departure.getTime()) / (1000 * 60 * 60)
+        
+        switch (filters.duration) {
+          case 'half-day': return durationHours <= 6
+          case 'full-day': return durationHours > 6 && durationHours <= 24
+          case 'multi-day': return durationHours > 24
+          default: return true
+        }
+      })
+    }
+
+    // Category filter (basic keyword matching in title/description)
+    if (filters.category !== 'any') {
+      filtered = filtered.filter(trip => {
+        const searchText = `${trip.title} ${trip.description}`.toLowerCase()
+        switch (filters.category) {
+          case 'adventure': return searchText.includes('adventure') || searchText.includes('hiking') || searchText.includes('outdoor')
+          case 'wildlife': return searchText.includes('wildlife') || searchText.includes('animal') || searchText.includes('nature')
+          case 'sightseeing': return searchText.includes('scenic') || searchText.includes('sightseeing') || searchText.includes('tour')
+          case 'cultural': return searchText.includes('cultural') || searchText.includes('heritage') || searchText.includes('museum')
+          default: return true
+        }
+      })
+    }
+
+    // Availability filter
+    if (filters.availability !== 'any') {
+      const now = new Date()
+      filtered = filtered.filter(trip => {
+        const tripDate = new Date(trip.departure_time)
+        switch (filters.availability) {
+          case 'this-week':
+            const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+            return tripDate >= now && tripDate <= weekFromNow
+          case 'this-month':
+            const monthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
+            return tripDate >= now && tripDate <= monthFromNow
+          case 'next-3-months':
+            const threeMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 3, now.getDate())
+            return tripDate >= now && tripDate <= threeMonthsFromNow
+          default: return true
+        }
+      })
+    }
+
+    setFilteredTrips(filtered)
+  }, [trips, filters])
+
+  // Handle filter changes
+  const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }))
+  }
 
   // Format price for display
   const formatPrice = (cents: number) => {
@@ -119,7 +226,7 @@ export default function HomePage() {
 
   const getTripsForDate = (day: number) => {
     const targetDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
-    return trips.filter(trip => {
+    return filteredTrips.filter(trip => {
       // Check if trip departure occurs on this date
       const tripDate = new Date(trip.departure_time)
       return tripDate.toDateString() === targetDate.toDateString()
@@ -214,7 +321,7 @@ export default function HomePage() {
       <section style={{ backgroundColor: branding.background_color || '#FFFFFF' }} className="border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>
               Browse Offerings
             </h1>
             <p className="text-gray-600">
@@ -240,7 +347,7 @@ export default function HomePage() {
               
               {/* Offering count */}
               <span className="text-sm text-gray-600">
-                {trips.length} offering{trips.length !== 1 ? 's' : ''} available
+                {filteredTrips.length} of {trips.length} offering{trips.length !== 1 ? 's' : ''} available
               </span>
             </div>
 
@@ -307,46 +414,62 @@ export default function HomePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Price Range
                   </label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2">
-                    <option>Any price</option>
-                    <option>Under $100</option>
-                    <option>$100 - $200</option>
-                    <option>$200 - $500</option>
-                    <option>Over $500</option>
+                  <select 
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    value={filters.priceRange}
+                    onChange={(e) => handleFilterChange('priceRange', e.target.value)}
+                  >
+                    <option value="any">Any price</option>
+                    <option value="under-100">Under $100</option>
+                    <option value="100-200">$100 - $200</option>
+                    <option value="200-500">$200 - $500</option>
+                    <option value="over-500">Over $500</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Duration
                   </label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2">
-                    <option>Any duration</option>
-                    <option>Half day</option>
-                    <option>Full day</option>
-                    <option>Multi-day</option>
+                  <select 
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    value={filters.duration}
+                    onChange={(e) => handleFilterChange('duration', e.target.value)}
+                  >
+                    <option value="any">Any duration</option>
+                    <option value="half-day">Half day</option>
+                    <option value="full-day">Full day</option>
+                    <option value="multi-day">Multi-day</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category
                   </label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2">
-                    <option>All categories</option>
-                    <option>Adventure</option>
-                    <option>Wildlife</option>
-                    <option>Sightseeing</option>
-                    <option>Cultural</option>
+                  <select 
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    value={filters.category}
+                    onChange={(e) => handleFilterChange('category', e.target.value)}
+                  >
+                    <option value="any">All categories</option>
+                    <option value="adventure">Adventure</option>
+                    <option value="wildlife">Wildlife</option>
+                    <option value="sightseeing">Sightseeing</option>
+                    <option value="cultural">Cultural</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Availability
                   </label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2">
-                    <option>All dates</option>
-                    <option>This week</option>
-                    <option>This month</option>
-                    <option>Next 3 months</option>
+                  <select 
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    value={filters.availability}
+                    onChange={(e) => handleFilterChange('availability', e.target.value)}
+                  >
+                    <option value="any">All dates</option>
+                    <option value="this-week">This week</option>
+                    <option value="this-month">This month</option>
+                    <option value="next-3-months">Next 3 months</option>
                   </select>
                 </div>
               </div>
@@ -375,10 +498,10 @@ export default function HomePage() {
         )}
 
         {/* Map View */}
-        {!loading && trips.length > 0 && viewMode === 'map' && (
+        {!loading && filteredTrips.length > 0 && viewMode === 'map' && (
           <div className="mb-8">
             <TripMap 
-              trips={trips}
+              trips={filteredTrips}
               selectedTripId={selectedTripId}
               onTripSelect={handleTripSelect}
               className="h-[600px] w-full rounded-lg overflow-hidden border border-gray-200"
@@ -387,7 +510,7 @@ export default function HomePage() {
         )}
 
         {/* Calendar View */}
-        {!loading && trips.length > 0 && viewMode === 'calendar' && (
+        {!loading && filteredTrips.length > 0 && viewMode === 'calendar' && (
           <div className="mb-8">
             {/* Enhanced Calendar Header */}
             <div className="flex items-center justify-between mb-8 p-6 rounded-xl shadow-sm border-2" style={{ 
@@ -409,7 +532,10 @@ export default function HomePage() {
               </button>
               
               <div className="text-center">
-                <h2 className="text-3xl font-bold mb-1" style={{ color: branding.textOnForeground || '#111827' }}>
+                <h2 className="text-3xl font-bold mb-1" style={{ 
+                  color: branding.textOnForeground || '#111827',
+                  fontFamily: `var(--tenant-font, 'Inter')`
+                }}>
                   {formatCalendarDate(currentMonth)}
                 </h2>
                 <p className="text-sm text-gray-500">
@@ -581,7 +707,10 @@ export default function HomePage() {
                       <div className="flex items-start justify-between mb-6">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
-                            <h3 className="text-2xl font-bold" style={{ color: branding.textOnForeground || '#111827' }}>
+                            <h3 className="text-2xl font-bold" style={{ 
+                              color: branding.textOnForeground || '#111827',
+                              fontFamily: `var(--tenant-font, 'Inter')`
+                            }}>
                               {selectedTrip.title}
                             </h3>
                             <div className="flex items-center gap-2">
@@ -682,12 +811,12 @@ export default function HomePage() {
         )}
 
         {/* Offering Grid/List */}
-        {!loading && trips.length > 0 && viewMode !== 'map' && viewMode !== 'calendar' && (
+        {!loading && filteredTrips.length > 0 && viewMode !== 'map' && viewMode !== 'calendar' && (
           <div className={viewMode === 'grid' 
             ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
             : "space-y-4"
           }>
-            {trips.map((trip) => (
+            {filteredTrips.map((trip) => (
               <div 
                 key={trip.id}
                 id={`trip-${trip.id}`}
@@ -731,7 +860,7 @@ export default function HomePage() {
                     </div>
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-lg text-gray-900 leading-tight">
+                        <h3 className="font-semibold text-lg text-gray-900 leading-tight" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>
                           {trip.title}
                         </h3>
                         <div className="flex items-center gap-1 text-sm text-gray-600 ml-2">
@@ -789,7 +918,7 @@ export default function HomePage() {
                     <div className="ml-4 flex-1 min-w-0">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                          <h3 className="font-semibold text-lg text-gray-900 mb-1" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>
                             {trip.title}
                           </h3>
                           <p className="text-gray-600 text-sm mb-2 flex items-center">
@@ -838,12 +967,33 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty State - No trips at all */}
         {!loading && trips.length === 0 && (
           <div className="text-center py-12">
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No trips available</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>No offerings available</h3>
             <p className="text-gray-600">Check back soon for new adventures!</p>
+          </div>
+        )}
+
+        {/* Empty State - No filtered results */}
+        {!loading && trips.length > 0 && filteredTrips.length === 0 && (
+          <div className="text-center py-12">
+            <SlidersHorizontal className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>No offerings match your filters</h3>
+            <p className="text-gray-600 mb-4">Try adjusting your filters to see more results.</p>
+            <button
+              onClick={() => setFilters({
+                priceRange: 'any',
+                duration: 'any', 
+                category: 'any',
+                availability: 'any'
+              })}
+              className="px-6 py-2 text-white font-medium rounded-lg transition-colors hover:opacity-90"
+              style={{ backgroundColor: branding.primary_color || '#10B981' }}
+            >
+              Clear All Filters
+            </button>
           </div>
         )}
       </main>

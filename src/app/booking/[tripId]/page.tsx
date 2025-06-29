@@ -248,7 +248,10 @@ export default function BookingPage() {
                   borderColor: branding.accent_color || '#637752'
                 }}
               >
-                <h1 className="text-2xl font-bold mb-4" style={{ color: branding.textOnForeground }}>
+                <h1 className="text-2xl font-bold mb-4" style={{ 
+                  color: branding.textOnForeground,
+                  fontFamily: `var(--tenant-font, 'Inter')`
+                }}>
                   {trip.title}
                 </h1>
                 
@@ -282,7 +285,10 @@ export default function BookingPage() {
                 </div>
 
                 <div className="mb-6">
-                  <h2 className="text-lg font-semibold mb-3" style={{ color: branding.textOnForeground }}>
+                  <h2 className="text-lg font-semibold mb-3" style={{ 
+                    color: branding.textOnForeground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     About This Experience
                   </h2>
                   <p className="leading-relaxed" style={{ color: branding.textOnForeground }}>
@@ -292,7 +298,10 @@ export default function BookingPage() {
 
                 {trip.highlights && trip.highlights.length > 0 && (
                   <div className="mb-6">
-                    <h2 className="text-lg font-semibold mb-3" style={{ color: branding.textOnForeground }}>
+                    <h2 className="text-lg font-semibold mb-3" style={{ 
+                      color: branding.textOnForeground,
+                      fontFamily: `var(--tenant-font, 'Inter')`
+                    }}>
                       Highlights
                     </h2>
                     <ul className="space-y-2">
@@ -311,7 +320,10 @@ export default function BookingPage() {
 
                 {trip.included_items && trip.included_items.length > 0 && (
                   <div className="mb-6">
-                    <h2 className="text-lg font-semibold mb-3" style={{ color: branding.textOnForeground }}>
+                    <h2 className="text-lg font-semibold mb-3" style={{ 
+                      color: branding.textOnForeground,
+                      fontFamily: `var(--tenant-font, 'Inter')`
+                    }}>
                       What's Included
                     </h2>
                     <ul className="space-y-2">
@@ -329,7 +341,10 @@ export default function BookingPage() {
                 )}
 
                 <div className="mb-6">
-                  <h2 className="text-lg font-semibold mb-3" style={{ color: branding.textOnForeground }}>
+                  <h2 className="text-lg font-semibold mb-3" style={{ 
+                    color: branding.textOnForeground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     Select Passengers
                   </h2>
                   <div className="flex items-center gap-4">
@@ -378,7 +393,10 @@ export default function BookingPage() {
                   borderColor: branding.accent_color || '#637752'
                 }}
               >
-                <h2 className="text-xl font-semibold mb-6" style={{ color: branding.textOnForeground }}>
+                <h2 className="text-xl font-semibold mb-6" style={{ 
+                  color: branding.textOnForeground,
+                  fontFamily: `var(--tenant-font, 'Inter')`
+                }}>
                   Passenger Information
                 </h2>
                 
@@ -689,7 +707,10 @@ export default function BookingPage() {
                   borderColor: branding.accent_color || '#637752'
                 }}
               >
-                <h2 className="text-xl font-semibold mb-6" style={{ color: branding.textOnForeground }}>
+                <h2 className="text-xl font-semibold mb-6" style={{ 
+                  color: branding.textOnForeground,
+                  fontFamily: `var(--tenant-font, 'Inter')`
+                }}>
                   Review Your Booking
                 </h2>
                 
@@ -701,7 +722,10 @@ export default function BookingPage() {
                     borderColor: branding.accent_color || '#637752'
                   }}
                 >
-                  <h3 className="text-lg font-medium mb-4" style={{ color: branding.textOnBackground }}>
+                  <h3 className="text-lg font-medium mb-4" style={{ 
+                    color: branding.textOnBackground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     Trip Details
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -734,7 +758,10 @@ export default function BookingPage() {
                     borderColor: branding.accent_color || '#637752'
                   }}
                 >
-                  <h3 className="text-lg font-medium mb-4" style={{ color: branding.textOnBackground }}>
+                  <h3 className="text-lg font-medium mb-4" style={{ 
+                    color: branding.textOnBackground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     Passenger Information
                   </h3>
                   {bookingData.passengers.map((passenger, index) => (
@@ -790,7 +817,10 @@ export default function BookingPage() {
                     borderColor: branding.accent_color || '#637752'
                   }}
                 >
-                  <h3 className="text-lg font-medium mb-4" style={{ color: branding.textOnBackground }}>
+                  <h3 className="text-lg font-medium mb-4" style={{ 
+                    color: branding.textOnBackground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     Pricing Breakdown
                   </h3>
                   <div className="space-y-2">
@@ -926,7 +956,10 @@ export default function BookingPage() {
                   borderColor: branding.accent_color || '#637752'
                 }}
               >
-                <h2 className="text-xl font-semibold mb-6" style={{ color: branding.textOnForeground }}>
+                <h2 className="text-xl font-semibold mb-6" style={{ 
+                  color: branding.textOnForeground,
+                  fontFamily: `var(--tenant-font, 'Inter')`
+                }}>
                   Payment Details
                 </h2>
                 
@@ -938,7 +971,10 @@ export default function BookingPage() {
                     borderColor: branding.accent_color || '#637752'
                   }}
                 >
-                  <h3 className="text-lg font-medium mb-4" style={{ color: branding.textOnBackground }}>
+                  <h3 className="text-lg font-medium mb-4" style={{ 
+                    color: branding.textOnBackground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     Payment Method
                   </h3>
                   <div className="space-y-3">
@@ -980,7 +1016,10 @@ export default function BookingPage() {
                     borderColor: branding.accent_color || '#637752'
                   }}
                 >
-                  <h3 className="text-lg font-medium mb-4" style={{ color: branding.textOnBackground }}>
+                  <h3 className="text-lg font-medium mb-4" style={{ 
+                    color: branding.textOnBackground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     Card Information
                   </h3>
                   
@@ -1040,7 +1079,10 @@ export default function BookingPage() {
                     borderColor: branding.accent_color || '#637752'
                   }}
                 >
-                  <h3 className="text-lg font-medium mb-4" style={{ color: branding.textOnBackground }}>
+                  <h3 className="text-lg font-medium mb-4" style={{ 
+                    color: branding.textOnBackground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     Billing Address
                   </h3>
                   
@@ -1150,7 +1192,10 @@ export default function BookingPage() {
                   <Check className="w-8 h-8 text-green-600" />
                 </div>
                 
-                <h2 className="text-2xl font-bold mb-2" style={{ color: branding.textOnForeground }}>
+                <h2 className="text-2xl font-bold mb-2" style={{ 
+                  color: branding.textOnForeground,
+                  fontFamily: `var(--tenant-font, 'Inter')`
+                }}>
                   Booking Confirmed!
                 </h2>
                 
@@ -1165,7 +1210,10 @@ export default function BookingPage() {
                     borderColor: branding.accent_color || '#637752'
                   }}
                 >
-                  <h3 className="font-medium mb-4" style={{ color: branding.textOnBackground }}>
+                  <h3 className="font-medium mb-4" style={{ 
+                    color: branding.textOnBackground,
+                    fontFamily: `var(--tenant-font, 'Inter')`
+                  }}>
                     Booking Details
                   </h3>
                   <div className="space-y-2 text-sm">
@@ -1244,7 +1292,10 @@ export default function BookingPage() {
                 />
               </div>
               
-              <h3 className="font-semibold text-lg mb-2" style={{ color: branding.textOnForeground }}>
+              <h3 className="font-semibold text-lg mb-2" style={{ 
+                color: branding.textOnForeground,
+                fontFamily: `var(--tenant-font, 'Inter')`
+              }}>
                 {trip.title}
               </h3>
               

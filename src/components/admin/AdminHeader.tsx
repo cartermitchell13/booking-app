@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Bell, Search, Menu, LogOut, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { GeistSans } from 'geist/font/sans';
 
 export default function AdminHeader() {
   const pathname = usePathname();
@@ -16,7 +17,7 @@ export default function AdminHeader() {
   });
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className={`bg-white shadow-sm border-b border-gray-200 ${GeistSans.className}`}>
       <div className="flex items-center justify-between px-6 py-4">
         {/* Left side - Breadcrumbs */}
         <div className="flex items-center space-x-4">

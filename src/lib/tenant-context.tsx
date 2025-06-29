@@ -220,6 +220,7 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
 
   return (
     <TenantContext.Provider value={value}>
+      <BrandingApplier tenant={tenant} />
       {children}
     </TenantContext.Provider>
   );
@@ -638,9 +639,8 @@ export function useTenantBranding() {
     if (branding.secondary_color) {
       root.style.setProperty('--tenant-secondary', branding.secondary_color);
     }
-    if (branding.font_family) {
-      root.style.setProperty('--tenant-font', branding.font_family);
-    }
+    // Font family is handled by BrandingApplier component to avoid conflicts
+    // with custom font loading logic
     
     // Apply custom CSS if provided
     if (branding.custom_css) {
@@ -690,4 +690,122 @@ export function useTenantBranding() {
     textOnPrimary: getOptimalTextColor(branding.primary_color),
     textOnAccent: getOptimalTextColor(branding.accent_color),
   };
-} 
+}
+
+// Apply branding styles to the document
+const BrandingApplier: React.FC<{ tenant: Tenant | null }> = ({ tenant }) => {
+  useEffect(() => {
+    if (tenant?.branding) {
+      const root = document.documentElement;
+      const branding = tenant.branding;
+      
+      console.log('🎨 Applying tenant branding:', {
+        tenantName: tenant.name,
+        fontFamily: branding.font_family,
+        customFontFamily: branding.custom_font_family,
+        customFontUrl: branding.custom_font_url,
+        customFontName: branding.custom_font_name
+      });
+      
+      // Apply color CSS variables
+      root.style.setProperty('--tenant-primary', branding.primary_color || '#10B981');
+      root.style.setProperty('--tenant-accent', branding.accent_color || '#059669');
+      root.style.setProperty('--tenant-background', branding.background_color || '#FFFFFF');
+      root.style.setProperty('--tenant-foreground', branding.foreground_color || '#111827');
+      root.style.setProperty('--tenant-secondary', branding.secondary_color || '#059669'); // Legacy support
+      
+      // Handle font family - use custom font if available, otherwise use selected font
+      let fontFamily = branding.font_family || 'Inter';
+      
+      // If custom font is configured, use it
+      if (branding.font_family === 'Custom Font' && branding.custom_font_family && branding.custom_font_url) {
+        fontFamily = `'${branding.custom_font_family}', 'Inter', sans-serif`;
+        console.log('🔤 Using custom font:', fontFamily);
+        
+        // Generate custom font CSS
+        const existingStyle = document.getElementById('tenant-custom-font-style');
+        if (existingStyle) {
+          existingStyle.remove();
+        }
+        
+        // Detect font format from URL
+        const url = branding.custom_font_url;
+        let format = 'opentype'; // default
+        if (url.includes('.woff2')) format = 'woff2';
+        else if (url.includes('.woff')) format = 'woff';
+        else if (url.includes('.ttf')) format = 'truetype';
+        else if (url.includes('.otf')) format = 'opentype';
+        
+        const style = document.createElement('style');
+        style.id = 'tenant-custom-font-style';
+        style.textContent = `
+          @font-face {
+            font-family: '${branding.custom_font_family}';
+            src: url('${branding.custom_font_url}') format('${format}');
+            font-display: swap;
+            font-weight: normal;
+            font-style: normal;
+          }
+        `;
+        document.head.appendChild(style);
+        
+        console.log('🔤 Added custom font CSS:', style.textContent);
+        
+        // Test if font loads successfully
+        const testDiv = document.createElement('div');
+        testDiv.style.fontFamily = `'${branding.custom_font_family}', monospace`;
+        testDiv.style.position = 'absolute';
+        testDiv.style.visibility = 'hidden';
+        testDiv.style.fontSize = '100px';
+        testDiv.innerHTML = 'Test';
+        document.body.appendChild(testDiv);
+        
+        // Check if font loaded after a brief delay
+        setTimeout(() => {
+          const computedStyle = window.getComputedStyle(testDiv);
+          const actualFont = computedStyle.fontFamily;
+          console.log('🔤 Font loading test:', {
+            expected: branding.custom_font_family,
+            actual: actualFont,
+            loaded: actualFont.includes(branding.custom_font_family || '')
+          });
+          document.body.removeChild(testDiv);
+        }, 100);
+        
+      } else {
+        // Remove custom font style if no custom font is set
+        const existingStyle = document.getElementById('tenant-custom-font-style');
+        if (existingStyle) {
+          existingStyle.remove();
+        }
+        
+        // Use standard font with proper fallbacks
+        if (fontFamily === 'Inter') fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        else if (fontFamily === 'Roboto') fontFamily = "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        else if (fontFamily === 'Open Sans') fontFamily = "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        else if (fontFamily === 'Poppins') fontFamily = "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        else if (fontFamily === 'Montserrat') fontFamily = "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        
+        console.log('🔤 Using standard font:', fontFamily);
+      }
+      
+      root.style.setProperty('--tenant-font', fontFamily);
+      console.log('🔤 Set --tenant-font CSS variable to:', fontFamily);
+      
+      // Apply custom CSS if provided
+      if (branding.custom_css) {
+        const existingCustomCSS = document.getElementById('tenant-custom-css');
+        if (existingCustomCSS) {
+          existingCustomCSS.remove();
+        }
+        
+        const customStyle = document.createElement('style');
+        customStyle.id = 'tenant-custom-css';
+        customStyle.textContent = branding.custom_css;
+        document.head.appendChild(customStyle);
+      }
+    }
+  }, [tenant]);
+
+  return null;
+}; 
