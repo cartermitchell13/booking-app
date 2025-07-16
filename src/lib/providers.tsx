@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useState } from 'react'
 import { TenantProvider, useTenantBranding } from './tenant-context'
 import { AuthProvider } from './auth-context'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 // Component to apply tenant branding globally
 function BrandingApplier() {
@@ -27,14 +28,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TenantProvider>
-        <AuthProvider>
-          <BrandingApplier />
-          {children}
-          <ReactQueryDevtools initialIsOpen={false} />
-        </AuthProvider>
-      </TenantProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TenantProvider>
+          <AuthProvider>
+            <BrandingApplier />
+            {children}
+            <ReactQueryDevtools initialIsOpen={false} />
+          </AuthProvider>
+        </TenantProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 } 

@@ -1,8 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Hardcode the values for now to bypass env variable issues
-const supabaseUrl = 'https://zsdkqmlhnffoidwyygce.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzZGtxbWxobmZmb2lkd3l5Z2NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MjY1MDAsImV4cCI6MjA2NTEwMjUwMH0.wBz8qK_lmSgX-c2iVlGE36bdaGMWzxbEdd81tQZjBxo'
+// Read credentials from environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Throw an error if the environment variables are not set
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase URL and anonymous key are not set. Please check your .env.local file.');
+}
 
 console.log('[Supabase] Initializing client with URL:', supabaseUrl);
 

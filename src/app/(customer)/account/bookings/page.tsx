@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTenant, useTenantBranding } from '@/lib/tenant-context';
+import { useTenant, useTenantBranding, useTenantSupabase } from '@/lib/tenant-context';
 import { useAuth } from '@/lib/auth-context';
 import { PageLoading } from '@/components/ui';
 import {
-  BookingHeader,
   BookingSearchFilters,
   BookingGrid,
   BookingStats,
@@ -33,7 +32,8 @@ interface Booking {
 
 export default function BookingHistory() {
   const { user } = useAuth();
-  const { tenant, supabase } = useTenant();
+  const { tenant } = useTenant();
+  const { supabase } = useTenantSupabase();
   const branding = useTenantBranding();
   
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -163,8 +163,6 @@ export default function BookingHistory() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: branding.background_color || '#faf9f6' }}>
-      <BookingHeader tenant={tenant} user={user} />
-      
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8">
           <h1 

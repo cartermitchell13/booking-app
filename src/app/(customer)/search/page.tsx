@@ -7,7 +7,6 @@ import { ViewToggle } from '@/components/ViewToggle'
 import { useTenant, useTenantSupabase, useTenantBranding } from '@/lib/tenant-context'
 import { TenantTrip, SearchFilters } from '@/types'
 import { MapPin, Filter, SlidersHorizontal, ArrowUpDown, Search, X } from 'lucide-react'
-import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
@@ -211,37 +210,6 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#faf9f6' }}>
-      {/* Header */}
-      <header className="relative z-10 bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex justify-between items-center py-4">
-            <Link href="/" className="flex items-center space-x-3">
-              <Image
-                src={branding.logo_url || "/images/black-pb-logo.png"}
-                alt={tenant.name}
-                width={160}
-                height={42}
-                className="h-10 w-auto"
-              />
-            </Link>
-            <nav className="hidden md:flex space-x-8">
-              <Link href="/search" className="font-medium" style={{ color: branding.primary_color || '#10B981' }}>
-                Trips
-              </Link>
-              <a href="#" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>
-                Destinations
-              </a>
-              <a href="#" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>
-                About
-              </a>
-              <a href="#" className="transition-colors" style={{ color: branding.secondary_color || '#637752' }}>
-                Support
-              </a>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Search Header */}
         <div className="mb-8">

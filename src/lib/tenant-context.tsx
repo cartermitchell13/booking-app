@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { Tenant, TenantContextType } from '@/types';
 import { supabase } from './supabase';
 import { getContrastingTextColor } from './utils';
+import { usePathname } from 'next/navigation';
 
 const TenantContext = createContext<TenantContextType>({
   tenant: null,
@@ -28,9 +29,10 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
   const [tenant, setTenant] = useState<Tenant | null>(initialTenant || null);
   const [isLoading, setIsLoading] = useState(!initialTenant);
   const [error, setError] = useState<string>();
+  const pathname = usePathname();
 
   // Get mock tenant data for development
-  const getMockTenantData = (slug: string): Tenant => {
+  const getMockTenantData = useCallback((slug: string): Tenant => {
     console.log(`[TenantContext] Creating mock tenant data for slug: ${slug}`);
     
     // Return mock data based on slug
@@ -93,10 +95,10 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-  };
+  }, []);
 
   // Detect tenant from current domain/subdomain with middleware header support
-  const detectTenant = async (): Promise<Tenant | null> => {
+  const detectTenant = useCallback(async (): Promise<Tenant | null> => {
     try {
       // Get hostname without port number
       const hostname = window.location.hostname;
@@ -232,9 +234,9 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
       }
       return getMockTenantData('parkbus');
     }
-  };
+  }, [getMockTenantData]);
 
-  // Load tenant on mount
+  // Load tenant on mount and on path change
   useEffect(() => {
     if (!initialTenant) {
       const loadTenant = async () => {
@@ -258,6 +260,7 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
             setError('Tenant not found for this domain');
           }
         } catch (err) {
+          console.error('[TenantContext] Error loading tenant:', err);
           setError(err instanceof Error ? err.message : 'Failed to load tenant');
         } finally {
           setIsLoading(false);
@@ -266,7 +269,7 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
 
       loadTenant();
     }
-  }, [initialTenant]);
+  }, [initialTenant, detectTenant]); // Remove pathname dependency to prevent reloading on navigation
 
   // Switch tenant (for super admin use)
   const switchTenant = async (tenantId: string) => {
@@ -290,7 +293,7 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
   };
 
   // Refresh current tenant
-  const refreshTenant = async () => {
+  const refreshTenant = useCallback(async () => {
     if (!tenant) return;
     
     setIsLoading(true);
@@ -308,7 +311,7 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [tenant]);
 
   const value: TenantContextType = {
     tenant,

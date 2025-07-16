@@ -123,40 +123,6 @@ export default function BookingLookupPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: branding.background_color || '#FFFFFF' }}>
-      {/* Mobile-Optimized Header */}
-      <header className="border-b border-gray-200 sticky top-0 z-10" style={{ backgroundColor: branding.foreground_color || '#FFFFFF' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex justify-between items-center py-3 sm:py-4">
-            <Link 
-              href="/"
-              className="text-lg sm:text-xl font-bold"
-              style={{ 
-                color: branding.primary_color || '#21452e',
-                fontFamily: `var(--tenant-font, 'Inter')`
-              }}
-            >
-              {tenant.name}
-            </Link>
-            <nav className="flex space-x-4 sm:space-x-6">
-              <Link 
-                href="/"
-                className="hover:opacity-70 transition-colors text-sm sm:text-base"
-                style={{ color: branding.textOnBackground }}
-              >
-                Home
-              </Link>
-              <Link 
-                href="/booking-lookup"
-                className="font-medium text-sm sm:text-base"
-                style={{ color: branding.primary_color || '#21452e' }}
-              >
-                Find Booking
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="text-center mb-6 sm:mb-8">
           <h1 className={`text-2xl sm:text-3xl ${branding.headingWeightClass} mb-3 sm:mb-4`} style={{ 

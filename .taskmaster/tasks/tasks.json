@@ -1,0 +1,351 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Fix Critical Security Issues - Environment Variables Setup",
+        "description": "Address the hardcoded Supabase API keys in the codebase by implementing environment variables for all sensitive credentials.",
+        "details": "1. Create a `.env.local` file at the project root to store environment variables\n2. Move all hardcoded Supabase API keys and other sensitive credentials to this file\n3. Update the application code to use `process.env.VARIABLE_NAME` instead of hardcoded values\n4. Create a `.env.example` file with placeholder values for documentation\n5. Update deployment configurations to include these environment variables\n6. Verify that the application functions correctly with the new setup\n7. Document the environment variables required for local development and production\n\nExample implementation:\n```javascript\n// Before\nconst supabaseClient = createClient('https://example.supabase.co', 'your-api-key-123')\n\n// After\nconst supabaseClient = createClient(\n  process.env.NEXT_PUBLIC_SUPABASE_URL,\n  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY\n)\n```\n\nNote: For Next.js applications, environment variables that need to be accessible in the browser should be prefixed with `NEXT_PUBLIC_`. Server-side only variables (like service role keys) should not have this prefix.",
+        "testStrategy": "1. Verify that no API keys or secrets are present in the codebase\n2. Test the application locally using the `.env.local` file\n3. Test the application in a staging environment with environment variables set through the deployment platform\n4. Perform a security audit to ensure no credentials are exposed in client-side code or API responses\n5. Verify that all functionality that previously used hardcoded credentials still works correctly",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Implement Destination Landing Pages",
+        "description": "Create dynamic, SEO-friendly pages for popular destinations that showcase relevant trips and content.",
+        "details": "1. Create a new page template at `/pages/destinations/[slug].js` using Next.js dynamic routing\n2. Implement server-side rendering (getServerSideProps or getStaticProps with revalidation) to fetch destination data\n3. Design the page layout with:\n   - Hero section with destination image and description\n   - Curated list of trips for that destination\n   - Destination highlights and information\n   - Related content (blog posts, guides)\n4. Create a Supabase query to fetch trips filtered by destination\n5. Implement SEO metadata with unique titles and descriptions\n6. Create a destinations index page at `/destinations` that lists all available destination pages\n7. Add structured data (JSON-LD) for better search engine visibility\n\nExample Supabase query:\n```javascript\nconst { data: destinationTrips, error } = await supabase\n  .from('trips')\n  .select('*')\n  .eq('destination_slug', slug)\n  .order('featured', { ascending: false })\n```\n\nRecommended libraries:\n- next-seo (^5.15.0) for SEO management\n- react-query (^4.28.0) for data fetching and caching",
+        "testStrategy": "1. Verify that destination pages are correctly generated with the appropriate content\n2. Test SEO elements using tools like Lighthouse and Google's Rich Results Test\n3. Ensure all links and navigation elements work correctly\n4. Test the page on various devices to ensure responsive design\n5. Verify that the correct trips are displayed for each destination\n6. Test URL patterns and slugs for consistency and SEO-friendliness",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement 'You Might Also Like' Trip Suggestions",
+        "description": "Create a component for trip detail pages that suggests similar or related trips based on the current trip's category, location, and price.",
+        "details": "1. Create a reusable React component for trip suggestions\n2. Implement an algorithm to find related trips based on:\n   - Same destination/region\n   - Similar price range (±20%)\n   - Same activity categories\n   - Same season/time of year\n3. Design a visually distinct card layout for suggested trips\n4. Limit suggestions to 3-4 trips to avoid overwhelming users\n5. Implement lazy loading for suggestion images\n6. Add analytics tracking for suggestion clicks\n\nExample algorithm implementation:\n```javascript\nasync function getSimilarTrips(currentTrip, limit = 4) {\n  const { data: similarTrips, error } = await supabase\n    .from('trips')\n    .select('*')\n    .neq('id', currentTrip.id) // Exclude current trip\n    .eq('destination_id', currentTrip.destination_id)\n    .gte('price', currentTrip.price * 0.8) // Within 20% price range\n    .lte('price', currentTrip.price * 1.2)\n    .limit(limit)\n  \n  return similarTrips;\n}\n```\n\nRecommended libraries:\n- react-intersection-observer (^9.4.3) for lazy loading\n- framer-motion (^10.12.16) for subtle animations",
+        "testStrategy": "1. Verify that suggestions are algorithmically relevant and not random\n2. Test that clicking a suggestion navigates to the correct trip page\n3. Ensure the component renders correctly on all device sizes\n4. Test with various trip types to ensure the algorithm works for all scenarios\n5. Verify that analytics events are correctly fired when suggestions are clicked\n6. Test edge cases (e.g., when there are fewer than 4 similar trips available)",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Implement Rich Media Gallery for Trip Detail Pages",
+        "description": "Upgrade trip detail pages to include a high-resolution photo and video gallery with lightbox view for immersive browsing.",
+        "details": "1. Design and implement a responsive media gallery component\n2. Support multiple content types:\n   - High-resolution images\n   - YouTube/Vimeo video embeds\n   - 360° panoramic images (optional)\n3. Implement a lightbox view for full-screen browsing\n4. Add touch/swipe gestures for mobile users\n5. Implement lazy loading for performance optimization\n6. Add image optimization using Next.js Image component\n7. Update the Supabase schema to support multiple media items per trip\n\nExample schema extension:\n```sql\nCREATE TABLE trip_media (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,\n  media_type TEXT NOT NULL CHECK (media_type IN ('image', 'video', 'panorama')),\n  url TEXT NOT NULL,\n  alt_text TEXT,\n  is_featured BOOLEAN DEFAULT false,\n  sort_order INTEGER DEFAULT 0,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n```\n\nRecommended libraries:\n- react-image-lightbox (^5.1.4) for the lightbox functionality\n- swiper (^9.3.2) for touch-enabled carousel\n- react-player (^2.12.0) for video embeds",
+        "testStrategy": "1. Test gallery with various image sizes and aspect ratios\n2. Verify that videos play correctly in both gallery and lightbox views\n3. Test touch/swipe gestures on mobile devices\n4. Verify that lazy loading works correctly for performance\n5. Test accessibility features (keyboard navigation, alt text)\n6. Verify that the gallery is responsive across all device sizes\n7. Test with various connection speeds to ensure optimized images load appropriately",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement Detailed Itinerary Display",
+        "description": "Create a day-by-day or hour-by-hour itinerary display for trip detail pages, including descriptions, locations with mini-maps, and timings for each activity or stop.",
+        "details": "1. Design a collapsible or tabbed interface for the itinerary\n2. Create a Supabase schema for storing itinerary items\n3. Implement a component to display itinerary items in chronological order\n4. Add mini-maps for each location using Google Maps or Mapbox\n5. Design mobile-friendly layout for the itinerary\n6. Add the ability to expand/collapse individual itinerary items\n7. Implement a timeline visualization for the itinerary\n\nExample schema extension:\n```sql\nCREATE TABLE itinerary_items (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,\n  day_number INTEGER NOT NULL,\n  time_start TIME,\n  time_end TIME,\n  title TEXT NOT NULL,\n  description TEXT,\n  location_name TEXT,\n  latitude DECIMAL(10, 8),\n  longitude DECIMAL(11, 8),\n  image_url TEXT,\n  sort_order INTEGER DEFAULT 0,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n```\n\nRecommended libraries:\n- @react-google-maps/api (^2.18.1) for mini-maps\n- react-tabs (^6.0.1) for tabbed interface\n- dayjs (^1.11.8) for time formatting",
+        "testStrategy": "1. Verify that itinerary items are displayed in the correct order\n2. Test the expand/collapse functionality\n3. Verify that mini-maps display correctly for each location\n4. Test the responsive layout on various device sizes\n5. Verify that time formatting is consistent and clear\n6. Test with various itinerary lengths (single-day vs. multi-day trips)\n7. Verify that all content (text, images, maps) renders correctly",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Implement Customer Reviews & Ratings System",
+        "description": "Create a full-featured review system allowing verified customers to leave star ratings and written reviews, with prominent display of average ratings.",
+        "details": "1. Create a Supabase schema for storing customer reviews\n2. Implement a review submission form for verified customers\n3. Add validation to ensure only customers who completed a trip can leave reviews\n4. Design a star rating component (1-5 stars)\n5. Calculate and display average ratings prominently on trip pages\n6. Implement a paginated display of individual reviews\n7. Add moderation capabilities for operators to flag inappropriate reviews\n8. Implement sorting options (newest, highest rated, etc.)\n\nExample schema extension:\n```sql\nCREATE TABLE reviews (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,\n  booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,\n  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,\n  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),\n  review_text TEXT,\n  reviewer_name TEXT NOT NULL,\n  is_verified BOOLEAN DEFAULT true,\n  is_approved BOOLEAN DEFAULT true,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n\n-- Function to calculate average rating\nCREATE OR REPLACE FUNCTION calculate_avg_rating(trip_id UUID)\nRETURNS DECIMAL AS $$\nDECLARE\n  avg_rating DECIMAL;\nBEGIN\n  SELECT AVG(rating) INTO avg_rating\n  FROM reviews\n  WHERE reviews.trip_id = calculate_avg_rating.trip_id\n  AND is_approved = true;\n  \n  RETURN avg_rating;\nEND;\n$$ LANGUAGE plpgsql;\n```\n\nRecommended libraries:\n- react-stars (^2.2.5) for star rating component\n- react-paginate (^8.2.0) for review pagination",
+        "testStrategy": "1. Verify that only verified customers can submit reviews\n2. Test the star rating component for both submission and display\n3. Verify that average ratings are calculated correctly\n4. Test pagination of reviews\n5. Verify that sorting options work correctly\n6. Test moderation features for operators\n7. Verify that reviews display correctly on trip detail pages\n8. Test the responsive layout on various device sizes",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Supabase Database Schema for Reviews",
+            "description": "Implement the database schema for storing customer reviews and ratings with proper relationships to trips, bookings, and users.",
+            "dependencies": [],
+            "details": "Create the reviews table with fields for id, trip_id, booking_id, user_id, rating, review_text, reviewer_name, is_verified, is_approved, and created_at. Implement the calculate_avg_rating function to compute average ratings for trips. Add appropriate indexes for performance optimization.",
+            "status": "done",
+            "testStrategy": "Verify that the schema is correctly implemented with all constraints. Test the calculate_avg_rating function with various review scenarios. Ensure proper cascading deletion when a trip is removed."
+          },
+          {
+            "id": 2,
+            "title": "Develop Review Submission Components",
+            "description": "Create the frontend components for customers to submit reviews, including star rating selection and review text input.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement a review form component using react-stars for the rating selection. Add form validation to ensure ratings are between 1-5 and review text meets length requirements. Create logic to verify that only customers who completed a trip can leave reviews by checking booking status.",
+            "status": "done",
+            "testStrategy": "Test form validation for various inputs. Verify that the star rating component works correctly. Ensure that only verified customers who completed trips can submit reviews."
+          },
+          {
+            "id": 3,
+            "title": "Implement Review Display and Pagination",
+            "description": "Create components to display reviews with pagination and sorting options on trip pages.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Develop a ReviewList component that displays individual reviews with star ratings, reviewer name, and date. Implement pagination using react-paginate to show a limited number of reviews per page. Add sorting options (newest, highest rated, etc.) with appropriate API endpoints to fetch sorted reviews.",
+            "status": "done",
+            "testStrategy": "Test pagination with various page sizes and review counts. Verify that sorting options correctly order the reviews. Ensure responsive display on different screen sizes."
+          },
+          {
+            "id": 4,
+            "title": "Create Average Rating Display",
+            "description": "Implement components to prominently display average ratings on trip pages and in search results.",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Create a component that displays the average rating using the calculate_avg_rating function. Design visual elements to show the average rating with star icons and the number of reviews. Implement caching strategies to avoid recalculating average ratings on every page load.",
+            "status": "done",
+            "testStrategy": "Verify that average ratings are calculated correctly. Test the display with various rating scenarios (no reviews, partial stars, etc.). Ensure the component updates when new reviews are added."
+          },
+          {
+            "id": 5,
+            "title": "Implement Review Moderation System",
+            "description": "Create an interface for operators to moderate reviews, including approving, rejecting, and flagging inappropriate content.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Develop an admin interface for operators to view all reviews. Implement functionality to approve or reject reviews before they are publicly visible. Add flagging capabilities for inappropriate content. Create a notification system to alert operators of new reviews requiring moderation.",
+            "status": "done",
+            "testStrategy": "Test the moderation workflow for approving and rejecting reviews. Verify that flagged reviews are properly marked. Ensure that only approved reviews are visible to customers. Test that average ratings only include approved reviews."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Implement Real-Time Availability Calendar",
+        "description": "Create a calendar showing trip availability for the next 12 months with color-coded dates for availability status and dynamic pricing updates.",
+        "details": "1. Design a responsive calendar component\n2. Implement color-coding for availability status:\n   - Available (green)\n   - Limited Spots (orange)\n   - Sold Out (red)\n3. Connect to Supabase to fetch real-time availability data\n4. Update pricing when a date is selected\n5. Implement month navigation for browsing future dates\n6. Add mobile-friendly date picker for smaller screens\n7. Implement caching for performance optimization\n\nExample Supabase query:\n```javascript\nasync function getTripAvailability(tripId, startDate, endDate) {\n  const { data, error } = await supabase\n    .from('trip_dates')\n    .select('date, price, spots_total, spots_booked')\n    .eq('trip_id', tripId)\n    .gte('date', startDate)\n    .lte('date', endDate)\n  \n  return data.map(item => ({\n    ...item,\n    availability_status: getAvailabilityStatus(item.spots_total, item.spots_booked)\n  }));\n}\n\nfunction getAvailabilityStatus(total, booked) {\n  const availablePercentage = ((total - booked) / total) * 100;\n  if (availablePercentage <= 0) return 'sold_out';\n  if (availablePercentage <= 20) return 'limited';\n  return 'available';\n}\n```\n\nRecommended libraries:\n- react-datepicker (^4.12.0) for calendar component\n- swr (^2.1.5) for data fetching with caching",
+        "testStrategy": "1. Verify that the calendar displays correct availability data\n2. Test color-coding for different availability statuses\n3. Verify that selecting a date updates the price correctly\n4. Test month navigation for browsing future dates\n5. Verify that the calendar is responsive on mobile devices\n6. Test edge cases (no available dates, single available date)\n7. Verify that real-time updates are reflected when availability changes",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement FAQ Section for Trip Pages",
+        "description": "Add a per-trip FAQ section where operators can answer common questions about specific trips in an accordion/collapsible format.",
+        "details": "1. Create a Supabase schema for storing FAQs\n2. Design an accordion component for displaying FAQs\n3. Implement operator interface for managing FAQs\n4. Add search/filter functionality for FAQs\n5. Implement schema.org FAQ markup for SEO benefits\n6. Design mobile-friendly layout for the FAQ section\n\nExample schema extension:\n```sql\nCREATE TABLE trip_faqs (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,\n  question TEXT NOT NULL,\n  answer TEXT NOT NULL,\n  sort_order INTEGER DEFAULT 0,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n```\n\nExample schema.org markup:\n```javascript\nconst faqSchema = {\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"FAQPage\",\n  \"mainEntity\": faqs.map(faq => ({\n    \"@type\": \"Question\",\n    \"name\": faq.question,\n    \"acceptedAnswer\": {\n      \"@type\": \"Answer\",\n      \"text\": faq.answer\n    }\n  }))\n};\n```\n\nRecommended libraries:\n- @mui/material (^5.13.4) for accordion component\n- react-helmet-async (^1.3.0) for schema.org markup injection",
+        "testStrategy": "1. Verify that FAQs are displayed correctly in the accordion format\n2. Test the expand/collapse functionality\n3. Verify that operators can add, edit, and delete FAQs\n4. Test search/filter functionality\n5. Verify that schema.org markup is correctly implemented\n6. Test the responsive layout on various device sizes\n7. Verify that FAQs are trip-specific and display correctly on the appropriate trip pages",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Stripe Integration for Secure Payments",
+        "description": "Fully integrate Stripe for secure payment processing, including credit/debit cards and digital wallets, ensuring PCI compliance.",
+        "details": "1. Set up a Stripe account and obtain API keys\n2. Implement Stripe Elements for secure card collection\n3. Add support for Apple Pay and Google Pay\n4. Create server-side endpoints for creating payment intents\n5. Implement webhook handling for payment events\n6. Add error handling and recovery flows\n7. Store payment records securely in Supabase\n8. Implement receipt generation and email delivery\n\nExample implementation:\n```javascript\n// Client-side\nimport { loadStripe } from '@stripe/stripe-js';\nimport { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';\n\nconst stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);\n\nfunction CheckoutForm({ clientSecret, amount }) {\n  const stripe = useStripe();\n  const elements = useElements();\n  \n  const handleSubmit = async (event) => {\n    event.preventDefault();\n    \n    const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {\n      payment_method: {\n        card: elements.getElement(CardElement),\n        billing_details: { /* ... */ }\n      }\n    });\n    \n    if (error) {\n      // Handle error\n    } else if (paymentIntent.status === 'succeeded') {\n      // Handle successful payment\n    }\n  };\n  \n  return (\n    <form onSubmit={handleSubmit}>\n      <CardElement />\n      <button type=\"submit\">Pay ${amount}</button>\n    </form>\n  );\n}\n\n// Server-side (API route)\nimport Stripe from 'stripe';\n\nconst stripe = new Stripe(process.env.STRIPE_SECRET_KEY);\n\nexport default async function handler(req, res) {\n  const { amount, currency = 'usd', metadata } = req.body;\n  \n  try {\n    const paymentIntent = await stripe.paymentIntents.create({\n      amount,\n      currency,\n      metadata\n    });\n    \n    res.status(200).json({ clientSecret: paymentIntent.client_secret });\n  } catch (error) {\n    res.status(500).json({ error: error.message });\n  }\n}\n```\n\nRecommended libraries:\n- @stripe/stripe-js (^1.54.0)\n- @stripe/react-stripe-js (^2.1.0)\n- stripe (^12.8.0) for server-side",
+        "testStrategy": "1. Test payment processing with various card types\n2. Verify that Apple Pay and Google Pay work correctly\n3. Test error handling for declined cards and other failures\n4. Verify that payment records are correctly stored\n5. Test webhook handling for payment events\n6. Verify that receipts are generated and emailed correctly\n7. Test the entire payment flow in Stripe test mode\n8. Verify PCI compliance by ensuring card details never touch your server",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement Add-Ons & Extras for Bookings",
+        "description": "Allow users to add optional extras to their booking, such as equipment rentals, meal upgrades, or merchandise, with dynamic price updates.",
+        "details": "1. Create a Supabase schema for storing add-ons\n2. Design an interface for operators to manage add-ons\n3. Implement a component for displaying and selecting add-ons during booking\n4. Add dynamic price calculation as add-ons are selected\n5. Update the booking schema to store selected add-ons\n6. Implement inventory management for add-ons with limited quantity\n\nExample schema extension:\n```sql\nCREATE TABLE trip_add_ons (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,\n  name TEXT NOT NULL,\n  description TEXT,\n  price DECIMAL(10, 2) NOT NULL,\n  image_url TEXT,\n  has_inventory BOOLEAN DEFAULT false,\n  inventory_quantity INTEGER,\n  is_active BOOLEAN DEFAULT true,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n\nCREATE TABLE booking_add_ons (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,\n  add_on_id UUID REFERENCES trip_add_ons(id) ON DELETE SET NULL,\n  quantity INTEGER NOT NULL DEFAULT 1,\n  price_at_booking DECIMAL(10, 2) NOT NULL,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n```\n\nExample price calculation:\n```javascript\nfunction calculateTotalPrice(basePrice, selectedAddOns) {\n  const addOnsTotal = selectedAddOns.reduce((total, addOn) => {\n    return total + (addOn.price * addOn.quantity);\n  }, 0);\n  \n  return basePrice + addOnsTotal;\n}\n```",
+        "testStrategy": "1. Verify that operators can create and manage add-ons\n2. Test the add-on selection interface during booking\n3. Verify that prices update correctly as add-ons are selected\n4. Test inventory management for limited-quantity add-ons\n5. Verify that selected add-ons are correctly stored with bookings\n6. Test edge cases (removing add-ons, changing quantities)\n7. Verify that add-ons appear correctly on booking confirmations and receipts",
+        "priority": "medium",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Implement Guest Checkout Flow",
+        "description": "Enable users to complete a booking without creating an account, with the option to create an account post-purchase.",
+        "details": "1. Design a streamlined checkout flow that doesn't require account creation\n2. Collect only essential information (email, passenger details)\n3. Generate a unique booking reference for tracking\n4. Implement post-purchase account creation option\n5. Create a mechanism to associate guest bookings with accounts if created later\n6. Ensure guest bookings are still visible to operators\n\nExample implementation:\n```javascript\nasync function createGuestBooking(bookingData) {\n  // Generate a unique booking reference\n  const bookingReference = generateUniqueReference();\n  \n  // Create the booking in Supabase\n  const { data: booking, error } = await supabase\n    .from('bookings')\n    .insert({\n      ...bookingData,\n      booking_reference: bookingReference,\n      user_id: null, // No user ID for guest bookings\n      email: bookingData.email,\n      is_guest_booking: true\n    })\n    .select()\n    .single();\n  \n  if (error) throw error;\n  \n  // Send confirmation email with link to create account\n  await sendBookingConfirmationEmail(booking, true);\n  \n  return booking;\n}\n\nasync function convertGuestToUser(email, password, bookingId) {\n  // Create a new user account\n  const { data: authData, error: authError } = await supabase.auth.signUp({\n    email,\n    password\n  });\n  \n  if (authError) throw authError;\n  \n  // Associate the booking with the new user\n  const { error: updateError } = await supabase\n    .from('bookings')\n    .update({ user_id: authData.user.id, is_guest_booking: false })\n    .eq('id', bookingId)\n    .eq('email', email); // Security check\n  \n  if (updateError) throw updateError;\n  \n  return authData.user;\n}\n```",
+        "testStrategy": "1. Test the complete guest checkout flow\n2. Verify that booking confirmations are sent correctly\n3. Test the post-purchase account creation process\n4. Verify that guest bookings are correctly associated with accounts when created\n5. Test that operators can view and manage guest bookings\n6. Verify that guest bookings appear in the customer's account after conversion\n7. Test edge cases (guest tries to create account with different email)",
+        "priority": "high",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Implement Booking Summary Review Page",
+        "description": "Create a comprehensive booking summary review page displaying all trip details, passenger information, add-ons, and price breakdown before payment.",
+        "details": "1. Design a clear and comprehensive summary layout\n2. Include all critical booking information:\n   - Trip details (name, date, time, location)\n   - Passenger information\n   - Selected add-ons\n   - Price breakdown (base price, add-ons, taxes, fees, total)\n3. Add navigation to previous steps for making changes\n4. Implement a printable/saveable version\n5. Add terms and conditions acceptance checkbox\n\nExample price breakdown component:\n```jsx\nfunction PriceBreakdown({ basePrice, addOns, taxes, fees }) {\n  const addOnsTotal = addOns.reduce((total, addOn) => {\n    return total + (addOn.price * addOn.quantity);\n  }, 0);\n  \n  const subtotal = basePrice + addOnsTotal;\n  const taxAmount = subtotal * (taxes / 100);\n  const total = subtotal + taxAmount + fees;\n  \n  return (\n    <div className=\"price-breakdown\">\n      <h3>Price Breakdown</h3>\n      <div className=\"breakdown-item\">\n        <span>Base Price:</span>\n        <span>${basePrice.toFixed(2)}</span>\n      </div>\n      {addOns.map(addOn => (\n        <div className=\"breakdown-item\" key={addOn.id}>\n          <span>{addOn.name} x{addOn.quantity}:</span>\n          <span>${(addOn.price * addOn.quantity).toFixed(2)}</span>\n        </div>\n      ))}\n      <div className=\"breakdown-item\">\n        <span>Subtotal:</span>\n        <span>${subtotal.toFixed(2)}</span>\n      </div>\n      <div className=\"breakdown-item\">\n        <span>Taxes ({taxes}%):</span>\n        <span>${taxAmount.toFixed(2)}</span>\n      </div>\n      <div className=\"breakdown-item\">\n        <span>Booking Fee:</span>\n        <span>${fees.toFixed(2)}</span>\n      </div>\n      <div className=\"breakdown-item total\">\n        <span>Total:</span>\n        <span>${total.toFixed(2)}</span>\n      </div>\n    </div>\n  );\n}\n```",
+        "testStrategy": "1. Verify that all booking information is displayed correctly\n2. Test navigation to previous steps for making changes\n3. Verify that the price breakdown is accurate\n4. Test the printable/saveable version\n5. Verify that terms and conditions must be accepted before proceeding\n6. Test with various booking scenarios (different add-ons, passenger counts, etc.)\n7. Verify that the page is responsive on all device sizes",
+        "priority": "high",
+        "dependencies": [
+          10
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement My Bookings Dashboard",
+        "description": "Create a dashboard where logged-in users can view their upcoming and past trips, with clear separation and detailed information for each booking.",
+        "details": "1. Design a user dashboard layout with sections for upcoming, past, and cancelled trips\n2. Implement filtering and sorting options\n3. Display key information for each booking (trip name, date, booking ID, status)\n4. Add links to detailed booking views\n5. Implement pagination for users with many bookings\n6. Add quick actions (view details, download receipt, contact support)\n7. Make the dashboard the primary landing page after login\n\nExample implementation:\n```jsx\nfunction MyBookingsDashboard() {\n  const [activeTab, setActiveTab] = useState('upcoming');\n  const { data: bookings, isLoading, error } = useBookings();\n  \n  const upcomingBookings = bookings?.filter(booking => \n    new Date(booking.trip_date) > new Date() && booking.status !== 'cancelled'\n  );\n  \n  const pastBookings = bookings?.filter(booking => \n    new Date(booking.trip_date) < new Date() && booking.status !== 'cancelled'\n  );\n  \n  const cancelledBookings = bookings?.filter(booking => \n    booking.status === 'cancelled'\n  );\n  \n  return (\n    <div className=\"bookings-dashboard\">\n      <h1>My Bookings</h1>\n      \n      <div className=\"tabs\">\n        <button \n          className={activeTab === 'upcoming' ? 'active' : ''}\n          onClick={() => setActiveTab('upcoming')}\n        >\n          Upcoming ({upcomingBookings?.length || 0})\n        </button>\n        <button \n          className={activeTab === 'past' ? 'active' : ''}\n          onClick={() => setActiveTab('past')}\n        >\n          Past ({pastBookings?.length || 0})\n        </button>\n        <button \n          className={activeTab === 'cancelled' ? 'active' : ''}\n          onClick={() => setActiveTab('cancelled')}\n        >\n          Cancelled ({cancelledBookings?.length || 0})\n        </button>\n      </div>\n      \n      {isLoading ? (\n        <LoadingSpinner />\n      ) : error ? (\n        <ErrorMessage error={error} />\n      ) : (\n        <div className=\"bookings-list\">\n          {activeTab === 'upcoming' && renderBookingsList(upcomingBookings)}\n          {activeTab === 'past' && renderBookingsList(pastBookings)}\n          {activeTab === 'cancelled' && renderBookingsList(cancelledBookings)}\n        </div>\n      )}\n    </div>\n  );\n}\n```\n\nRecommended libraries:\n- react-query (^4.28.0) for data fetching\n- react-table (^7.8.0) for sortable/filterable tables",
+        "testStrategy": "1. Verify that bookings are correctly categorized as upcoming, past, or cancelled\n2. Test filtering and sorting functionality\n3. Verify that booking details are displayed correctly\n4. Test pagination for users with many bookings\n5. Verify that quick actions work correctly\n6. Test the responsive layout on various device sizes\n7. Verify that the dashboard is the primary landing page after login",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Implement Self-Service Booking Modifications",
+        "description": "Allow customers to make certain modifications to their bookings, such as updating passenger details, with operator-configurable rules.",
+        "details": "1. Design an interface for editing booking details\n2. Implement operator-configurable rules for what can be modified\n3. Add validation for modifications (e.g., time limits before trip)\n4. Create an audit log for tracking changes\n5. Implement notification system for operators when changes are made\n6. Add confirmation step before applying changes\n\nExample schema extensions:\n```sql\n-- Add modification settings to trips table\nALTER TABLE trips ADD COLUMN allow_passenger_modifications BOOLEAN DEFAULT true;\nALTER TABLE trips ADD COLUMN modification_cutoff_hours INTEGER DEFAULT 48;\n\n-- Create audit log for modifications\nCREATE TABLE booking_modifications (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,\n  user_id UUID REFERENCES auth.users(id),\n  modification_type TEXT NOT NULL,\n  previous_value JSONB,\n  new_value JSONB,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n```\n\nExample modification logic:\n```javascript\nasync function canModifyBooking(bookingId, modificationType) {\n  // Get the booking and associated trip\n  const { data: booking, error: bookingError } = await supabase\n    .from('bookings')\n    .select('*, trip:trips(*)')\n    .eq('id', bookingId)\n    .single();\n  \n  if (bookingError) throw bookingError;\n  \n  // Check if modifications are allowed for this trip\n  if (modificationType === 'passenger_details' && !booking.trip.allow_passenger_modifications) {\n    return { allowed: false, reason: 'Passenger modifications are not allowed for this trip' };\n  }\n  \n  // Check if we're past the cutoff time\n  const tripDate = new Date(booking.trip_date);\n  const cutoffTime = new Date(tripDate.getTime() - (booking.trip.modification_cutoff_hours * 60 * 60 * 1000));\n  const now = new Date();\n  \n  if (now > cutoffTime) {\n    return { \n      allowed: false, \n      reason: `Modifications must be made at least ${booking.trip.modification_cutoff_hours} hours before the trip` \n    };\n  }\n  \n  return { allowed: true };\n}\n```",
+        "testStrategy": "1. Verify that modifications are only allowed according to operator rules\n2. Test time-based restrictions (e.g., modifications not allowed within 48 hours of trip)\n3. Verify that the audit log correctly tracks all changes\n4. Test operator notifications when changes are made\n5. Verify that validation prevents invalid modifications\n6. Test the confirmation step before applying changes\n7. Verify that modified bookings display the updated information correctly",
+        "priority": "medium",
+        "dependencies": [
+          13
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Implement Self-Service Cancellations",
+        "description": "Allow customers to cancel their bookings online, with automatic refund calculation and processing based on the operator's refund policy.",
+        "details": "1. Design an interface for cancelling bookings\n2. Implement operator-configurable refund policies\n3. Create a refund calculator based on time until trip\n4. Integrate with Stripe for processing refunds\n5. Add confirmation step with clear refund amount display\n6. Implement email notifications for cancellations\n7. Update booking status and inventory after cancellation\n\nExample schema extensions:\n```sql\n-- Add cancellation policy to trips table\nALTER TABLE trips ADD COLUMN cancellation_policy JSONB DEFAULT '{\n  \"full_refund_hours\": 168,\n  \"partial_refund_hours\": 72,\n  \"partial_refund_percentage\": 50,\n  \"no_refund_hours\": 24\n}'::jsonb;\n\n-- Create table for refunds\nCREATE TABLE refunds (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,\n  amount DECIMAL(10, 2) NOT NULL,\n  stripe_refund_id TEXT,\n  status TEXT NOT NULL DEFAULT 'pending',\n  reason TEXT,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n```\n\nExample refund calculation:\n```javascript\nfunction calculateRefundAmount(booking, cancellationPolicy) {\n  const tripDate = new Date(booking.trip_date);\n  const now = new Date();\n  const hoursUntilTrip = (tripDate - now) / (1000 * 60 * 60);\n  \n  if (hoursUntilTrip >= cancellationPolicy.full_refund_hours) {\n    // Full refund\n    return booking.total_amount;\n  } else if (hoursUntilTrip >= cancellationPolicy.partial_refund_hours) {\n    // Partial refund\n    return booking.total_amount * (cancellationPolicy.partial_refund_percentage / 100);\n  } else if (hoursUntilTrip >= cancellationPolicy.no_refund_hours) {\n    // Minimal refund (e.g., taxes only)\n    return booking.tax_amount;\n  } else {\n    // No refund\n    return 0;\n  }\n}\n\nasync function processRefund(bookingId) {\n  // Get the booking and payment info\n  const { data: booking, error } = await supabase\n    .from('bookings')\n    .select('*, trip:trips(cancellation_policy)')\n    .eq('id', bookingId)\n    .single();\n  \n  if (error) throw error;\n  \n  // Calculate refund amount\n  const refundAmount = calculateRefundAmount(booking, booking.trip.cancellation_policy);\n  \n  if (refundAmount > 0) {\n    // Process refund through Stripe\n    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);\n    const refund = await stripe.refunds.create({\n      payment_intent: booking.stripe_payment_intent_id,\n      amount: Math.round(refundAmount * 100) // Convert to cents\n    });\n    \n    // Record the refund\n    await supabase.from('refunds').insert({\n      booking_id: bookingId,\n      amount: refundAmount,\n      stripe_refund_id: refund.id,\n      status: 'completed'\n    });\n  }\n  \n  // Update booking status\n  await supabase\n    .from('bookings')\n    .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })\n    .eq('id', bookingId);\n  \n  // Send cancellation email\n  await sendCancellationEmail(booking, refundAmount);\n  \n  return { booking, refundAmount };\n}\n```",
+        "testStrategy": "1. Verify that cancellation policies are correctly applied\n2. Test refund calculations for different scenarios\n3. Verify that Stripe refunds are processed correctly\n4. Test the confirmation step with refund amount display\n5. Verify that email notifications are sent for cancellations\n6. Test that booking status and inventory are updated after cancellation\n7. Verify that cancelled bookings appear correctly in the user's dashboard\n8. Test edge cases (e.g., cancelling very close to trip time)",
+        "priority": "high",
+        "dependencies": [
+          9,
+          13
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Implement Trip Wishlist Functionality",
+        "description": "Allow both logged-in and guest users to save trips to a wishlist, with synchronization across devices for logged-in users.",
+        "details": "1. Create a Supabase schema for storing wishlisted trips\n2. Implement a \"Save to Wishlist\" button (heart icon) on trip cards and detail pages\n3. Use local storage for guest users' wishlists\n4. Implement synchronization when guest users log in\n5. Create a dedicated wishlist page\n6. Add functionality to remove items from the wishlist\n7. Implement notifications for price changes on wishlisted trips\n\nExample schema extension:\n```sql\nCREATE TABLE wishlisted_trips (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,\n  trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  UNIQUE(user_id, trip_id)\n);\n```\n\nExample implementation:\n```javascript\n// For logged-in users\nasync function toggleWishlist(tripId, userId) {\n  // Check if already in wishlist\n  const { data: existing, error: checkError } = await supabase\n    .from('wishlisted_trips')\n    .select('id')\n    .eq('user_id', userId)\n    .eq('trip_id', tripId)\n    .single();\n  \n  if (checkError && checkError.code !== 'PGRST116') throw checkError;\n  \n  if (existing) {\n    // Remove from wishlist\n    const { error: deleteError } = await supabase\n      .from('wishlisted_trips')\n      .delete()\n      .eq('id', existing.id);\n    \n    if (deleteError) throw deleteError;\n    return { added: false };\n  } else {\n    // Add to wishlist\n    const { error: insertError } = await supabase\n      .from('wishlisted_trips')\n      .insert({ user_id: userId, trip_id: tripId });\n    \n    if (insertError) throw insertError;\n    return { added: true };\n  }\n}\n\n// For guest users\nfunction toggleGuestWishlist(tripId) {\n  // Get current wishlist from localStorage\n  const wishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');\n  \n  const index = wishlist.indexOf(tripId);\n  if (index > -1) {\n    // Remove from wishlist\n    wishlist.splice(index, 1);\n    localStorage.setItem('guestWishlist', JSON.stringify(wishlist));\n    return { added: false };\n  } else {\n    // Add to wishlist\n    wishlist.push(tripId);\n    localStorage.setItem('guestWishlist', JSON.stringify(wishlist));\n    return { added: true };\n  }\n}\n\n// Sync guest wishlist after login\nasync function syncGuestWishlist(userId) {\n  const guestWishlist = JSON.parse(localStorage.getItem('guestWishlist') || '[]');\n  if (guestWishlist.length === 0) return;\n  \n  // Add each item to the user's wishlist\n  const promises = guestWishlist.map(tripId => \n    supabase\n      .from('wishlisted_trips')\n      .upsert({ user_id: userId, trip_id: tripId })\n  );\n  \n  await Promise.all(promises);\n  \n  // Clear guest wishlist\n  localStorage.removeItem('guestWishlist');\n}\n```\n\nRecommended libraries:\n- zustand (^4.3.8) for state management across components",
+        "testStrategy": "1. Verify that logged-in users can add and remove trips from their wishlist\n2. Test that guest users' wishlists are stored in local storage\n3. Verify that guest wishlists are correctly synced after login\n4. Test the wishlist page layout and functionality\n5. Verify that the wishlist button (heart icon) updates correctly\n6. Test synchronization across multiple devices for logged-in users\n7. Verify that notifications work for price changes on wishlisted trips",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Enhance Notification System for Automated Emails",
+        "description": "Expand the existing email system to include automated trip reminders and post-trip review requests with professional, on-brand templates.",
+        "details": "1. Design professional email templates for:\n   - Trip reminders (7 days before)\n   - Final instructions (24 hours before)\n   - Post-trip review requests\n2. Implement a scheduling system for automated emails\n3. Create a template engine for personalizing emails\n4. Add tracking for email opens and clicks\n5. Implement unsubscribe functionality\n6. Create an admin interface for managing email templates\n\nExample implementation using a serverless function:\n```javascript\n// Scheduled function to send trip reminders\nexport async function sendTripReminders() {\n  // Get trips happening in 7 days\n  const sevenDaysFromNow = new Date();\n  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);\n  const dateString = sevenDaysFromNow.toISOString().split('T')[0];\n  \n  const { data: upcomingBookings, error } = await supabase\n    .from('bookings')\n    .select('*, trip:trips(*), user:profiles(*)')\n    .eq('trip_date', dateString)\n    .eq('status', 'confirmed');\n  \n  if (error) throw error;\n  \n  // Send reminder email for each booking\n  for (const booking of upcomingBookings) {\n    await sendEmail({\n      to: booking.email,\n      subject: `Your trip to ${booking.trip.name} is in 7 days!`,\n      template: 'trip-reminder',\n      templateData: {\n        firstName: booking.user.first_name,\n        tripName: booking.trip.name,\n        tripDate: formatDate(booking.trip_date),\n        meetingPoint: booking.trip.meeting_point,\n        bookingReference: booking.booking_reference,\n        whatToBring: booking.trip.what_to_bring,\n        viewBookingUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/account/bookings/${booking.id}`\n      }\n    });\n    \n    // Log that reminder was sent\n    await supabase\n      .from('email_logs')\n      .insert({\n        booking_id: booking.id,\n        email_type: 'trip_reminder_7_days',\n        sent_to: booking.email\n      });\n  }\n}\n```\n\nRecommended libraries:\n- nodemailer (^6.9.3) for sending emails\n- mjml (^4.14.1) for responsive email templates\n- handlebars (^4.7.7) for template rendering",
+        "testStrategy": "1. Verify that emails are sent at the correct times\n2. Test email templates on various email clients and devices\n3. Verify that personalization works correctly\n4. Test tracking for email opens and clicks\n5. Verify that unsubscribe functionality works\n6. Test the admin interface for managing email templates\n7. Verify that email logs are correctly recorded",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Implement Performance Optimizations",
+        "description": "Optimize the application to achieve a Google PageSpeed score of 90+ on mobile and desktop, with Time to Interactive under 3 seconds.",
+        "details": "1. Implement code splitting and lazy loading\n2. Optimize and compress images\n3. Implement caching strategies\n4. Minimize and optimize CSS and JavaScript\n5. Implement server-side rendering for critical pages\n6. Add prefetching for common navigation paths\n7. Optimize database queries\n8. Implement CDN for static assets\n\nExample Next.js code splitting:\n```javascript\nimport dynamic from 'next/dynamic';\n\n// Lazy load components that aren't needed for initial render\nconst TripReviews = dynamic(() => import('../components/TripReviews'), {\n  loading: () => <p>Loading reviews...</p>,\n  ssr: false // Don't render on server if not needed immediately\n});\n\n// Prefetch pages that are likely to be visited next\nimport { useRouter } from 'next/router';\nimport { useEffect } from 'react';\n\nfunction TripDetailPage() {\n  const router = useRouter();\n  \n  useEffect(() => {\n    // Prefetch the booking page\n    router.prefetch(`/trips/${router.query.id}/book`);\n  }, [router]);\n  \n  // ...\n}\n```\n\nExample image optimization:\n```jsx\nimport Image from 'next/image';\n\nfunction OptimizedImage({ src, alt, ...props }) {\n  return (\n    <div className=\"image-container\">\n      <Image\n        src={src}\n        alt={alt}\n        width={800}\n        height={600}\n        placeholder=\"blur\"\n        blurDataURL=\"data:image/png;base64,...\" // Base64 encoded tiny placeholder\n        loading=\"lazy\"\n        {...props}\n      />\n    </div>\n  );\n}\n```\n\nExample database query optimization:\n```javascript\n// Before optimization\nconst { data: trip, error } = await supabase\n  .from('trips')\n  .select('*')\n  .eq('id', tripId)\n  .single();\n\nconst { data: reviews } = await supabase\n  .from('reviews')\n  .select('*')\n  .eq('trip_id', tripId);\n\n// After optimization - single query with join\nconst { data: trip, error } = await supabase\n  .from('trips')\n  .select(`\n    *,\n    reviews(*)\n  `)\n  .eq('id', tripId)\n  .single();\n```",
+        "testStrategy": "1. Use Google PageSpeed Insights to measure performance scores\n2. Test Time to Interactive (TTI) on various devices and connection speeds\n3. Use Lighthouse in Chrome DevTools for detailed performance analysis\n4. Verify that lazy loading works correctly\n5. Test caching strategies\n6. Measure and compare database query performance\n7. Test the application on low-end devices to ensure good performance\n8. Verify that prefetching improves navigation speed",
+        "priority": "high",
+        "dependencies": [
+          1,
+          4,
+          5,
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "Implement Accessibility Improvements",
+        "description": "Ensure the application complies with WCAG 2.1 AA standards, making it usable for people with disabilities.",
+        "details": "1. Add proper semantic HTML throughout the application\n2. Implement keyboard navigation for all interactive elements\n3. Add ARIA attributes where appropriate\n4. Ensure sufficient color contrast\n5. Add screen reader support\n6. Implement focus management\n7. Add skip navigation links\n8. Test with assistive technologies\n\nExample accessibility improvements:\n```jsx\n// Before\n<div className=\"button\" onClick={handleClick}>\n  <img src=\"/icons/heart.svg\" />\n</div>\n\n// After\n<button \n  className=\"wishlist-button\" \n  onClick={handleClick}\n  aria-label={isWishlisted ? \"Remove from wishlist\" : \"Add to wishlist\"}\n  aria-pressed={isWishlisted}\n>\n  <img src=\"/icons/heart.svg\" alt=\"\" role=\"presentation\" />\n</button>\n\n// Skip navigation link\n<a href=\"#main-content\" className=\"skip-link\">\n  Skip to main content\n</a>\n\n// Focus management\nimport { useRef, useEffect } from 'react';\n\nfunction Modal({ isOpen, onClose, children }) {\n  const modalRef = useRef(null);\n  \n  useEffect(() => {\n    if (isOpen) {\n      // Save previous focus\n      const previousFocus = document.activeElement;\n      \n      // Focus the modal\n      modalRef.current?.focus();\n      \n      // Restore focus when modal closes\n      return () => {\n        previousFocus?.focus();\n      };\n    }\n  }, [isOpen]);\n  \n  return isOpen ? (\n    <div \n      ref={modalRef}\n      role=\"dialog\"\n      aria-modal=\"true\"\n      tabIndex={-1}\n      className=\"modal\"\n    >\n      <button \n        onClick={onClose}\n        aria-label=\"Close modal\"\n        className=\"close-button\"\n      >\n        &times;\n      </button>\n      {children}\n    </div>\n  ) : null;\n}\n```\n\nRecommended libraries:\n- @axe-core/react (^4.7.0) for accessibility testing\n- react-focus-lock (^2.9.4) for managing focus in modals",
+        "testStrategy": "1. Use automated testing tools like axe-core\n2. Test keyboard navigation throughout the application\n3. Verify color contrast using tools like WebAIM's Contrast Checker\n4. Test with screen readers (NVDA, VoiceOver, JAWS)\n5. Verify that all interactive elements have appropriate focus states\n6. Test with users who rely on assistive technologies\n7. Verify that all images have appropriate alt text\n8. Test form validation and error messages for accessibility",
+        "priority": "high",
+        "dependencies": [
+          1,
+          4,
+          5,
+          6,
+          7,
+          8,
+          12,
+          13,
+          16
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 20,
+        "title": "Implement Responsive Design Improvements",
+        "description": "Ensure the entire customer-facing experience is fully responsive and optimized for a mobile-first user experience.",
+        "details": "1. Implement a mobile-first CSS approach\n2. Create responsive breakpoints for different device sizes\n3. Optimize touch targets for mobile users\n4. Implement responsive images\n5. Create mobile-specific navigation\n6. Optimize forms for mobile input\n7. Test and fix any responsive issues\n\nExample responsive implementation:\n```css\n/* Mobile-first base styles */\n.trip-card {\n  display: flex;\n  flex-direction: column;\n  padding: 1rem;\n  margin-bottom: 1rem;\n  border-radius: 8px;\n  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\n}\n\n.trip-card__image {\n  width: 100%;\n  height: 200px;\n  object-fit: cover;\n  border-radius: 4px;\n  margin-bottom: 0.5rem;\n}\n\n/* Tablet styles */\n@media (min-width: 768px) {\n  .trip-card {\n    flex-direction: row;\n    align-items: center;\n  }\n  \n  .trip-card__image {\n    width: 250px;\n    height: 150px;\n    margin-bottom: 0;\n    margin-right: 1rem;\n  }\n}\n\n/* Desktop styles */\n@media (min-width: 1024px) {\n  .trip-card {\n    padding: 1.5rem;\n  }\n  \n  .trip-card__image {\n    width: 300px;\n    height: 200px;\n  }\n}\n```\n\nExample responsive navigation:\n```jsx\nimport { useState } from 'react';\n\nfunction ResponsiveNavigation() {\n  const [isMenuOpen, setIsMenuOpen] = useState(false);\n  \n  return (\n    <nav className=\"navigation\">\n      <div className=\"navigation__logo\">\n        <img src=\"/logo.svg\" alt=\"ParkBus\" />\n      </div>\n      \n      <button \n        className=\"navigation__toggle\"\n        aria-expanded={isMenuOpen}\n        aria-controls=\"navigation-menu\"\n        onClick={() => setIsMenuOpen(!isMenuOpen)}\n      >\n        <span className=\"sr-only\">Menu</span>\n        <span className=\"navigation__toggle-icon\"></span>\n      </button>\n      \n      <ul \n        id=\"navigation-menu\"\n        className={`navigation__menu ${isMenuOpen ? 'is-open' : ''}`}\n      >\n        <li><a href=\"/\">Home</a></li>\n        <li><a href=\"/destinations\">Destinations</a></li>\n        <li><a href=\"/account\">My Account</a></li>\n        <li><a href=\"/wishlist\">Wishlist</a></li>\n      </ul>\n    </nav>\n  );\n}\n```\n\nRecommended approach:\n- Use CSS Grid and Flexbox for layouts\n- Implement a design system with consistent spacing and typography\n- Use relative units (rem, em, %) instead of fixed pixels\n- Test on real devices, not just browser emulators",
+        "testStrategy": "1. Test on various physical devices (phones, tablets, desktops)\n2. Use browser developer tools to test different viewport sizes\n3. Verify that touch targets are appropriately sized (at least 44x44px)\n4. Test forms and input fields on mobile devices\n5. Verify that images are appropriately sized for different devices\n6. Test navigation on small screens\n7. Verify that content is readable without zooming\n8. Test with different orientations (portrait/landscape)",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          12,
+          13,
+          16
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-07-16T18:25:05.377Z",
+      "updated": "2025-07-16T19:51:05.568Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

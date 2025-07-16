@@ -12,6 +12,8 @@ import { EmptyState } from '@/components/EmptyState'
 import { TripCard } from '@/components/TripCard'
 import { TripListItem } from '@/components/TripListItem'
 import { TripCalendar } from '@/components/TripCalendar'
+import { useLoadingState } from '@/hooks/useLoadingState'
+import { DebugPanel } from '@/components/DebugPanel'
 
 // Dynamically import the map component to avoid SSR issues
 const TripMap = dynamic(() => import('@/components/map/TripMap'), {
@@ -29,7 +31,7 @@ const TripMap = dynamic(() => import('@/components/map/TripMap'), {
 export default function HomePage() {
   const { tenant, isLoading: tenantLoading } = useTenant()
   const branding = useTenantBranding()
-  const { trips, loading, error, tenantLoading: tripsLoading } = useTrips()
+  const { trips, loading, error, tenantLoading: tripsLoading, refetch } = useTrips()
   const {
     filters,
     filteredTrips,
@@ -63,7 +65,15 @@ export default function HomePage() {
     }
   }, [tenant?.branding, branding]);
 
-  if (tenantLoading || tripsLoading) {
+  // Show loading state while tenant or trips are loading
+  const isLoading = tenantLoading || tripsLoading || loading;
+  const showLoading = useLoadingState(isLoading, {
+    minLoadingTime: 300, // Minimum 300ms to prevent flash
+    maxLoadingTime: 8000, // Maximum 8 seconds
+    autoHideAfter: 12000 // Force hide after 12 seconds
+  });
+
+  if (showLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: branding.background_color || '#F9FAFB' }}>
         <div className="text-center">
@@ -86,7 +96,11 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: branding.background_color || '#F9FAFB' }}>
+    <div 
+      key={tenant.id} // Force re-render when tenant changes 
+      className="min-h-screen" 
+      style={{ backgroundColor: branding.background_color || '#F9FAFB' }}
+    >
       <HomeHeader
         tenant={tenant}
         totalTrips={trips.length}
@@ -164,6 +178,13 @@ export default function HomePage() {
           <EmptyState type="no-filtered-results" onClearFilters={clearFilters} />
         )}
       </main>
+      
+      {/* Debug Panel */}
+      <DebugPanel 
+        tripsLoading={loading}
+        tripsError={error}
+        tripsCount={trips.length}
+      />
     </div>
   )
 }

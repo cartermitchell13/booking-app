@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { ReviewList } from '@/components/reviews/ReviewList';
+import { AverageRating } from '@/components/reviews/AverageRating';
 
 export default function TripDetailPage() {
   const params = useParams()
@@ -249,15 +251,29 @@ export default function TripDetailPage() {
               className="rounded-2xl p-6 border-2"
               style={{ 
                 backgroundColor: branding.foreground_color || '#FFFFFF',
-                borderColor: branding.accent_color || '#637752'
+                borderColor: branding.accent_color || '#E5E7EB'
               }}
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex justify-between items-start mb-4">
+                <h1 className="text-4xl font-extrabold" style={{ color: branding.textOnForeground }}>
+                  {trip.title}
+                </h1>
+                <div className="flex items-center space-x-4">
+                  <button className="p-2 rounded-full hover:bg-gray-100">
+                    <Heart className="w-6 h-6" style={{ color: branding.textOnForeground }}/>
+                  </button>
+                  <button className="p-2 rounded-full hover:bg-gray-100">
+                    <Share className="w-6 h-6" style={{ color: branding.textOnForeground }}/>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-4 mb-6">
+                <AverageRating tripId={tripId} />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center mb-6 py-4 border-t border-b">
                 <div>
-                  <h1 className="text-3xl font-bold mb-2" style={{ 
-                    color: branding.textOnForeground,
-                    fontFamily: `var(--tenant-font, 'Inter')`
-                  }}>{trip.title}</h1>
                   <p className="flex items-center mb-2" style={{ color: branding.textOnForeground }}>
                     <MapPin className="w-5 h-5 mr-2" />
                     {trip.destination}
@@ -357,6 +373,10 @@ export default function TripDetailPage() {
                 ))}
               </div>
             </div>
+
+            {/* Reviews Section */}
+            <ReviewList tripId={tripId} />
+
           </div>
 
           {/* Booking Sidebar */}

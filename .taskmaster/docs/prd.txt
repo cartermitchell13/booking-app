@@ -1,0 +1,103 @@
+# ParkBus - Phase 2: Production-Ready Booking Platform PRD
+
+## 1. Overview
+
+This document outlines the requirements for transforming the existing ParkBus booking platform into a production-ready, feature-rich, and commercially competitive SaaS product. While the multi-tenant foundation and administrative dashboards are well-established, this phase focuses on creating a best-in-class, customer-facing experience that drives revenue and user engagement.
+
+The primary goal is to elevate the trip discovery and booking process from a functional-but-basic state to an immersive, intuitive, and trust-inspiring journey that can compete with market leaders like Airbnb, Viator, and Booking.com.
+
+---
+
+## 2. Core User Stories & Scenarios
+
+- **As a potential traveler, I want to...**
+    -  ...easily search for trips using flexible dates, destinations, and activities.
+    -  ...visually explore trip options on an interactive map.
+    -  ...see beautiful photos, detailed itineraries, and real customer reviews before I commit.
+    -  ...feel confident and secure when entering my payment information.
+    -  ...save trips I'm interested in to a wishlist for later.
+    -  ...manage my bookings, make changes, and communicate with the operator easily after purchase.
+
+- **As a tour operator (tenant), I want to...**
+    -  ...showcase my trips with rich media and compelling descriptions.
+    -  ...build trust with potential customers through a professional and secure booking interface.
+    -  ...maximize conversions with a streamlined and optimized booking flow.
+    -  ...offer add-ons and extras to increase the average booking value.
+    -  ...gather valuable customer feedback and reviews to improve my offerings.
+
+---
+
+## 3. Key Feature Areas for Development
+
+This PRD is broken down into the following key feature areas, which represent the major epics of work required for production launch.
+
+### Epic 1: Immersive Trip Discovery
+
+The goal is to make finding the perfect trip an engaging and effortless experience through curated pages and smart suggestions.
+
+| **Feature ID** | **Feature Name**                | **Description**                                                                                                                              | **Success Criteria**                                                                                                                                                                                             |
+| :------------- | :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **TDS-01**     | **Destination Landing Pages**   | Create dynamic pages for popular destinations or categories (e.g., `/destinations/banff`) that showcase relevant trips and content.            | - Pages are SEO-friendly with unique titles and meta descriptions.<br>- Each page displays a curated list of trips for that destination.<br>- A list of all destination pages is available for browsing.       |
+| **TDS-02**     | **"You Might Also Like"**       | On trip detail pages, implement a component that suggests similar or related trips based on the current trip's category, location, and price.    | - Suggestions are algorithmically relevant (not random).<br>- The component is visually distinct on the trip detail page.<br>- Clicking a suggestion navigates to the corresponding trip page.              |
+
+### Epic 2: Compelling Trip Detail Pages
+
+The trip detail page is the final conversion point. It must provide all necessary information in a clear, trustworthy, and visually appealing format.
+
+| **Feature ID** | **Feature Name**           | **Description**                                                                                                                                                                           | **Success Criteria**                                                                                                                                                                                               |
+| :------------- | :------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **TDP-01**     | **Rich Media Gallery**     | Upgrade the trip detail page to include a high-resolution photo and video gallery. Support for multiple images, a primary video, and a lightbox view for immersive browsing.             | - Gallery supports both images and video embeds (e.g., YouTube/Vimeo).<br>- Images can be viewed in a full-screen lightbox.<br>- Gallery is mobile-responsive with touch/swipe gestures.                             |
+| **TDP-02**     | **Detailed Itinerary**     | Display a day-by-day or hour-by-hour itinerary for the trip. This should include descriptions, locations (with mini-maps), and timings for each activity or stop.                           | - Itinerary is presented in a collapsible or tabbed interface.<br>- Each itinerary item can have associated text, images, and map coordinates.<br>- The layout is clean and easy to read on all devices.            |
+| **TDP-03**     | **Customer Reviews & Ratings** | Implement a full-featured review system. Allow verified customers to leave a star rating and a written review. Display the average rating prominently and list recent reviews.         | - Only customers who have completed a trip can leave a review.<br>- The average star rating is displayed at the top of the page.<br>- A dedicated section shows individual reviews with pagination.             |
+| **TDP-04**     | **Real-Time Availability Calendar** | Display a calendar showing trip availability for the next 12 months. Dates should be color-coded for "Available," "Limited Spots," and "Sold Out." Pricing should update when a date is selected. | - Calendar accurately reflects real-time inventory from the database.<br>- Selecting a date updates the booking widget with the correct price and availability status.<br>- Calendar is easy to navigate on mobile. |
+| **TDP-05**     | **FAQ Section**            | Add a per-trip FAQ section where operators can answer common questions about that specific trip (e.g., "What should I bring?", "Is lunch included?").                                   | - Operators can manage these FAQs from their admin dashboard.<br>- FAQs are displayed in an accordion/collapsible format on the trip page.                                                                     |
+
+### Epic 3: Optimized & Secure Booking Flow
+
+The booking flow must be as frictionless as possible to maximize conversions. This involves streamlining steps, ensuring security, and providing flexibility.
+
+| **Feature ID** | **Feature Name**         | **Description**                                                                                                                                                                                             | **Success Criteria**                                                                                                                                                                                                                                             |
+| :------------- | :----------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BKF-01**     | **Stripe Integration**   | Fully integrate Stripe for secure payment processing. This includes handling credit/debit cards and potentially other methods like Apple Pay/Google Pay. Ensure PCI compliance.                                | - Users can successfully complete a payment using Stripe Elements.<br>- Payment failures are handled gracefully with clear error messages.<br>- Transactions are securely recorded and linked to bookings.                                                            |
+| **BKF-02**     | **Add-Ons & Extras**     | Allow users to add optional extras to their booking, such as equipment rentals, meal upgrades, or merchandise. These should be configurable by the operator.                                                    | - Operators can create and manage add-ons from their dashboard.<br>- Customers can select and de-select add-ons during the booking process.<br>- The total price updates dynamically as add-ons are selected.                                                         |
+| **BKF-03**     | **Guest Checkout Flow**  | Enable users to complete a booking without creating an account. The option to create an account should be offered post-purchase.                                                                                | - A user can complete a booking by providing only an email and necessary passenger info.<br>- After a successful guest booking, the user is prompted to set a password to create an account.<br>- Guest bookings are still trackable by the operator.                 |
+| **BKF-04**     | **Booking Summary Review** | Before payment, present a clear and comprehensive summary of the booking, including trip details, dates, passenger information, add-ons, and a final price breakdown (including taxes and fees).               | - The review page displays all critical booking information for final verification.<br>- Users can easily navigate back to previous steps to make changes.<br>- The price breakdown is transparent and easy to understand.                                           |
+
+### Epic 4: Robust Customer Account Management
+
+Post-booking experience is crucial for customer satisfaction and repeat business. A self-service account dashboard empowers users and reduces support overhead.
+
+| **Feature ID** | **Feature Name**              | **Description**                                                                                                                                                              | **Success Criteria**                                                                                                                                                                                                    |
+| :------------- | :---------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CAM-01**     | **My Bookings Dashboard**     | Create a dashboard where logged-in users can view their upcoming and past trips. Each booking should have a link to its detailed view.                                             | - The dashboard clearly separates upcoming, past, and cancelled trips.<br>- Key information (trip name, date, booking ID) is visible at a glance.<br>- The dashboard is the primary landing page after logging in.          |
+| **CAM-02**     | **Self-Service Modifications**| Allow customers to make certain modifications to their bookings, such as updating passenger details. The ability to do this should be configurable by the operator based on their policies. | - Users can edit passenger names/contact info up to a certain date before the trip.<br>- Any changes are logged and the operator is notified.<br>- Rules for what can be modified are enforced by the system.                |
+| **CAM-03**     | **Self-Service Cancellations**| Allow customers to cancel their bookings online, subject to the operator's refund policy. The system should automatically calculate and process any applicable refund.                 | - Cancellation policies are clearly displayed.<br>- The system calculates the correct refund amount based on the cancellation date.<br>- The booking status is updated and the refund is processed via Stripe.          |
+| **CAM-04**     | **Trip Wishlist**             | Allow both logged-in and guest users (using local storage) to save trips to a "wishlist." Logged-in users' wishlists should be synced across devices.                                 | - A "Save to Wishlist" button (e.g., a heart icon) is present on trip cards and detail pages.<br>- A dedicated `/account/wishlist` page displays all saved trips.<br>- Users can easily add/remove items from their wishlist. |
+
+### Epic 5: Communication & Notifications
+
+Automated and timely communication is key to a professional and trustworthy service.
+
+| **Feature ID** | **Feature Name**                | **Description**                                                                                                                                                         | **Success Criteria**                                                                                                                                                                                                       |
+| :------------- | :------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **COM-01**     | **Enhanced Notification System**| Expand the existing email system (which already handles booking confirmations) to include automated trip reminders and post-trip review requests.                           | - An automated email is sent to customers 7 days before their trip.<br>- An automated email is sent 24 hours before their trip.<br>- An automated email is sent post-trip to request a review.<br>- All email templates are professional and on-brand. |
+| **COM-02**     | **Fix Critical Security Issues**| Address the hardcoded Supabase API keys in the codebase by using environment variables for all sensitive keys.                                                            | - No API keys, secrets, or other sensitive credentials are present in the client-side source code.<br>- All keys are managed via secure environment variables (`.env.local`).<br>- The application functions correctly with the new setup. |
+
+---
+
+## 4. Non-Functional Requirements
+
+- **Performance:** All pages must have a Google PageSpeed score of 90+ on mobile and desktop. The Time to Interactive (TTI) should be under 3 seconds.
+- **Security:** All user data must be encrypted in transit (HTTPS). Payment processing must be PCI compliant. Address all identified security vulnerabilities, especially the hardcoded API keys.
+- **Scalability:** The architecture must support a growing number of tenants and bookings without performance degradation. Database queries must be optimized.
+- **Accessibility:** The application should comply with WCAG 2.1 AA standards, ensuring it is usable for people with disabilities.
+- **Responsiveness:** The entire customer-facing experience must be fully responsive and optimized for a mobile-first user experience.
+
+---
+
+## 5. Assumptions & Dependencies
+
+- The existing Supabase schema can be extended to support the new features (reviews, wishlists, etc.) without a major overhaul.
+- The tour operators (tenants) will be responsible for providing high-quality content (photos, detailed descriptions, itineraries).
+- A Stripe account will be available for integration testing and production use.
+- The `scratchpad.md` provides an accurate, high-level overview of the work completed to date.

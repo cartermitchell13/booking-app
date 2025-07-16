@@ -190,6 +190,19 @@ export function BookingCard({
               <ChevronRight className="h-4 w-4" />
             </Link>
             
+            {booking.status === 'completed' && (
+              <Link
+                href={`/account/bookings/${booking.id}/review`}
+                className="flex-1 flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 text-base font-semibold rounded-lg transition-all duration-200 hover:shadow-md"
+                style={{ 
+                  backgroundColor: branding.primary_color || '#10B981',
+                  color: branding.background_color || '#FFFFFF'
+                }}
+              >
+                Leave a Review
+              </Link>
+            )}
+
             {(booking.status === 'confirmed' || booking.status === 'pending') && canCancel && (
               <button
                 onClick={() => onCancelClick(booking)}
@@ -304,6 +317,20 @@ export function BookingCard({
               <div className="text-xs text-gray-400 text-center">
                 {booking.status === 'cancelled' ? 'Cancelled' : 'Cannot cancel'}
               </div>
+            )}
+
+            {booking.status === 'completed' && (
+              <Link
+                href={`/account/bookings/${booking.id}/review`}
+                className="flex items-center gap-2 min-h-[44px] px-6 py-3 text-sm font-semibold rounded-lg transition-all duration-200 hover:shadow-md"
+                style={{ 
+                  backgroundColor: branding.primary_color || '#10B981',
+                  color: branding.background_color || '#FFFFFF'
+                }}
+              >
+                Leave a Review
+                <ChevronRight className="h-4 w-4" />
+              </Link>
             )}
           </div>
         </div>

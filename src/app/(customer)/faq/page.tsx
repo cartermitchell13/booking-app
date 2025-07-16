@@ -181,67 +181,6 @@ export default function FAQPage() {
       className="min-h-screen"
       style={{ backgroundColor: branding.background_color || '#F8FAFC' }}
     >
-      {/* Header */}
-      <div className="bg-white shadow-lg border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center">
-                {tenant?.branding?.logo_url ? (
-                  <img
-                    className="h-10 w-auto"
-                    src={tenant.branding.logo_url}
-                    alt={tenant.name}
-                  />
-                ) : (
-                  <div 
-                    className="text-2xl font-bold"
-                    style={{ color: branding.primary_color || '#10B981' }}
-                  >
-                    {tenant?.name || 'BookingApp'}
-                  </div>
-                )}
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/contact"
-                className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 hover:opacity-90"
-                style={{ 
-                  backgroundColor: branding.primary_color || '#10B981',
-                  color: branding.textOnPrimary || '#FFFFFF'
-                }}
-              >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Contact Support
-              </Link>
-              <Link
-                href="/help"
-                className="inline-flex items-center px-4 py-2 border text-sm font-medium rounded-lg transition-all duration-200 hover:bg-gray-50"
-                style={{ 
-                  borderColor: branding.primary_color || '#10B981',
-                  color: branding.primary_color || '#10B981'
-                }}
-              >
-                <HelpCircle className="h-4 w-4 mr-2" />
-                Help Center
-              </Link>
-              <Link
-                href="/"
-                className="inline-flex items-center px-4 py-2 border text-sm font-medium rounded-lg transition-all duration-200 hover:bg-gray-50"
-                style={{ 
-                  borderColor: branding.accent_color || '#059669',
-                  color: branding.accent_color || '#059669'
-                }}
-              >
-                <Home className="h-4 w-4 mr-2" />
-                Home
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-4xl mx-auto py-12 sm:px-6 lg:px-8">
         <div className="px-4 sm:px-0">
           {/* Hero Section */}
