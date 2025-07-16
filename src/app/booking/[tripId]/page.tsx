@@ -6,7 +6,9 @@ import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Check } from 'lucide-r
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTenant, useTenantSupabase, useTenantBranding } from '@/lib/tenant-context'
+import { useAuth } from '@/lib/auth-context'
 import { TenantTrip } from '@/types'
+import { PageLoading, ButtonLoading } from '@/components/ui'
 
 type BookingStep = 'details' | 'passengers' | 'review' | 'payment' | 'confirmation'
 
@@ -27,6 +29,17 @@ interface BookingData {
   specialRequests: string
 }
 
+interface CreatedBooking {
+  id: string
+  booking_reference: string
+  status: string
+  payment_status: string
+  total_amount: number
+  passenger_count_adult: number
+  passenger_count_child: number
+  created_at: string
+}
+
 export default function BookingPage() {
   const params = useParams()
   const tripId = params.tripId as string
@@ -41,9 +54,12 @@ export default function BookingPage() {
     specialRequests: ''
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [createdBooking, setCreatedBooking] = useState<CreatedBooking | null>(null)
+  const [isCreatingBooking, setIsCreatingBooking] = useState(false)
 
   const { tenant, isLoading: tenantLoading } = useTenant()
   const { getProductById } = useTenantSupabase()
+  const { user } = useAuth()
   const branding = useTenantBranding()
 
   // Load trip data from database (using new products system)
@@ -95,18 +111,74 @@ export default function BookingPage() {
     })
   }
 
+  // Create booking function
+  const createBooking = async () => {
+    if (!trip || !tenant) {
+      console.error('Missing trip or tenant data')
+      return
+    }
+
+    setIsCreatingBooking(true)
+    try {
+      console.log('Creating booking for trip:', trip.id)
+      
+      const bookingPayload = {
+        tenant_id: tenant.id,
+        product_id: trip.id, // Using products system
+        user_id: user?.id || null, // Use logged-in user ID or null for guest booking
+        customer_email: user?.email,
+        customer_name: user ? `${user.first_name} ${user.last_name}` : '',
+        passenger_count_adult: passengerCount,
+        passenger_count_child: 0,
+        passenger_details: bookingData.passengers,
+        total_amount: trip.price_adult * passengerCount, // Already in cents
+        special_requests: bookingData.specialRequests || null,
+        payment_intent_id: `sim_${Date.now()}` // Simulated payment ID for now
+      }
+
+      console.log('Booking payload:', bookingPayload)
+
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingPayload)
+      })
+
+      const result = await response.json()
+      console.log('Booking API response:', JSON.stringify(result, null, 2))
+      console.log('Response status:', response.status)
+
+      if (!response.ok) {
+        console.error('Booking API error:', result)
+        console.error('Response details:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: result.error,
+          details: result.details
+        })
+        throw new Error(result.error || `Failed to create booking (Status: ${response.status})`)
+      }
+
+      if (result.success && result.booking) {
+        setCreatedBooking(result.booking)
+        setCurrentStep('confirmation')
+        console.log('Booking created successfully:', result.booking)
+      } else {
+        throw new Error('Invalid response from booking API')
+      }
+
+    } catch (error) {
+      console.error('Error creating booking:', error)
+      alert(`Failed to create booking: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsCreatingBooking(false)
+    }
+  }
+
   if (tenantLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: branding.background_color || '#FFFFFF' }}>
-        <div className="text-center">
-          <div 
-            className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-            style={{ borderBottomColor: branding.primary_color || '#10B981' }}
-          ></div>
-          <p style={{ color: branding.textOnBackground }}>Loading trip details...</p>
-        </div>
-      </div>
-    )
+    return <PageLoading message="Loading trip details..." />;
   }
 
   if (!tenant) {
@@ -1162,20 +1234,16 @@ export default function BookingPage() {
                   >
                     Back to Review
                   </button>
-                  <button 
-                    onClick={() => {
-                      // Simulate payment processing
-                      setCurrentStep('confirmation')
-                    }}
-                    className="py-3 px-8 rounded-lg font-medium transition-colors flex items-center space-x-2"
-                    style={{
-                      backgroundColor: branding.primary_color || '#21452e',
-                      color: 'white'
-                    }}
+                  <ButtonLoading
+                    loading={isCreatingBooking}
+                    onClick={createBooking}
+                    size="md"
+                    variant="primary"
+                    className="py-3 px-8 flex items-center space-x-2"
                   >
-                    <span>Complete Payment</span>
+                    <span>{isCreatingBooking ? 'Processing...' : 'Complete Payment'}</span>
                     <span className="font-bold">${totalPrice.toFixed(0)}</span>
-                  </button>
+                  </ButtonLoading>
                 </div>
               </div>
             )}
@@ -1219,7 +1287,7 @@ export default function BookingPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Booking Reference:</span>
-                      <span className="font-medium">PB-{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+                      <span className="font-medium">{createdBooking?.booking_reference || 'Loading...'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Trip:</span>
@@ -1231,12 +1299,31 @@ export default function BookingPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Passengers:</span>
-                      <span className="font-medium">{passengerCount} {passengerCount === 1 ? 'Adult' : 'Adults'}</span>
+                      <span className="font-medium">{createdBooking?.passenger_count_adult || passengerCount} {(createdBooking?.passenger_count_adult || passengerCount) === 1 ? 'Adult' : 'Adults'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Total Paid:</span>
                       <span className="font-bold" style={{ color: branding.primary_color || '#21452e' }}>
-                        ${totalPrice.toFixed(0)}
+                        ${createdBooking ? (createdBooking.total_amount / 100).toFixed(0) : totalPrice.toFixed(0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <span className="font-medium text-green-600">{createdBooking?.status || 'Processing'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Booked:</span>
+                      <span className="font-medium">
+                        {createdBooking?.created_at 
+                          ? new Date(createdBooking.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })
+                          : 'Just now'
+                        }
                       </span>
                     </div>
                   </div>
@@ -1247,17 +1334,26 @@ export default function BookingPage() {
                     <strong>What's Next:</strong> You'll receive a confirmation email with your e-tickets and trip details within the next few minutes.
                   </p>
                   <p>
+                    <strong>Save Your Reference:</strong> Keep your booking reference <strong>{createdBooking?.booking_reference}</strong> safe. You can use it to view or manage your booking anytime at our <Link href="/booking-lookup" className="text-blue-600 hover:underline">booking lookup page</Link>.
+                  </p>
+                  <p>
                     <strong>Need Help:</strong> Contact our support team at support@{tenant?.name.toLowerCase().replace(/\s+/g, '')}.com or call (555) 123-4567.
                   </p>
                 </div>
                 
-                <div className="flex gap-3 justify-center">
+                <div className="flex flex-wrap gap-3 justify-center">
                   <button 
                     onClick={() => window.print()}
                     className="py-3 px-6 border border-gray-300 rounded-lg font-medium transition-colors hover:bg-gray-50"
                   >
                     Print Confirmation
                   </button>
+                  <Link 
+                    href={`/booking-lookup?ref=${createdBooking?.booking_reference || ''}`}
+                    className="py-3 px-6 border border-gray-300 rounded-lg font-medium transition-colors hover:bg-gray-50"
+                  >
+                    View Booking Details
+                  </Link>
                   <Link 
                     href="/"
                     className="py-3 px-6 rounded-lg font-medium transition-colors"

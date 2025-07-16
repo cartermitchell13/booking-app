@@ -1,41 +1,45 @@
-import { Metadata } from 'next';
-import { Suspense } from 'react';
+'use client';
+
 import { GeistSans } from 'geist/font/sans';
+import { useRouteGuard } from '@/hooks/useRouteGuard';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminHeader from '@/components/admin/AdminHeader';
-
-export const metadata: Metadata = {
-  title: 'Platform Admin - Multi-Tenant Management',
-  description: 'Super admin dashboard for managing tenants and platform operations',
-};
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className={`min-h-screen bg-gray-50 geist-admin ${GeistSans.className}`}>
-      <div className="flex">
-        {/* Sidebar */}
-        <AdminSidebar />
-        
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-          <AdminHeader />
-          
-          <main className={`flex-1 p-6 geist-admin ${GeistSans.className}`}>
-            <div className={`geist-admin ${GeistSans.className}`}>
-              <Suspense fallback={
-                <div className="flex items-center justify-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              }>
-                {children}
-              </Suspense>
-            </div>
-          </main>
+  const { isAllowed, isChecking } = useRouteGuard({
+    allowedRoles: ['super_admin'],
+    redirectTo: '/login',
+  });
+
+  if (isChecking) {
+    return (
+      <div className={`flex h-screen bg-gray-100 geist-dashboard ${GeistSans.className}`}>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading admin dashboard...</p>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!isAllowed) return null;
+
+  return (
+    <div className={`flex h-screen bg-gray-100 geist-dashboard ${GeistSans.className}`}>
+      <AdminSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <AdminHeader />
+        <main className={`flex-1 overflow-y-auto geist-dashboard ${GeistSans.className}`}>
+          <div className={`geist-dashboard ${GeistSans.className}`}>
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

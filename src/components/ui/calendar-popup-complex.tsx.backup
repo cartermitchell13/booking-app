@@ -1,0 +1,827 @@
+/**
+ * CalendarPopup Component
+ * 
+ * Main calendar popup component with portal rendering and dual-month layout.
+ * Provides a sophisticated date picker interface similar to Booking.com's calendar.
+ * 
+ * Features:
+ * - Portal-based rendering for proper z-index layering
+ * - Side-by-side dual-month layout for desktop
+ * - Click-outside detection and escape key handling
+ * - Responsive design (single month on mobile)
+ * - Comprehensive accessibility and keyboard navigation
+ * - Focus trapping and ARIA announcements
+ * - Tenant branding integration
+ */
+
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { CalendarHeader } from './calendar-header';
+import { MonthView } from './month-view';
+import { useTenantBranding } from '@/lib/tenant-context';
+import { getNextMonth, getMonthYearDisplay } from '@/lib/date-utils';
+import type { DateRange, CalendarConfig, CalendarTheme } from '@/types/calendar';
+
+export interface CalendarPopupProps {
+  /** Whether the calendar popup is open */
+  isOpen: boolean;
+  /** Callback to close the calendar */
+  onClose: () => void;
+  /** Currently selected date range */
+  selectedRange: DateRange;
+  /** Callback when date range changes */
+  onRangeChange: (range: DateRange) => void;
+  /** Currently displayed month */
+  currentMonth: Date;
+  /** Date currently being hovered over */
+  hoveredDate?: Date;
+  /** Callback for month navigation */
+  onMonthChange: (date: Date) => void;
+  /** Callback for date selection */
+  onDateSelect: (date: Date) => void;
+  /** Callback for date hover */
+  onDateHover: (date?: Date) => void;
+  /** Calendar configuration options */
+  config?: CalendarConfig;
+  /** Theme configuration for styling */
+  theme?: Partial<CalendarTheme>;
+  /** Position relative to trigger element */
+  position?: {
+    top: number;
+    left: number;
+    width?: number;
+  };
+  /** Additional CSS classes */
+  className?: string;
+  /** Minimum selectable date */
+  minDate?: Date;
+  /** Maximum selectable date */
+  maxDate?: Date;
+  /** Custom trigger element ID for aria-describedby */
+  triggerId?: string;
+}
+
+export function CalendarPopup({
+  isOpen,
+  onClose,
+  selectedRange,
+  onRangeChange,
+  currentMonth,
+  hoveredDate,
+  onMonthChange,
+  onDateSelect,
+  onDateHover,
+  config = {},
+  theme = {},
+  position,
+  className = '',
+  minDate,
+  maxDate,
+  triggerId
+}: CalendarPopupProps) {
+  const popupRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const [announcement, setAnnouncement] = useState<string>('');
+  const [liveAnnouncement, setLiveAnnouncement] = useState<string>('');
+  const [focusedElement, setFocusedElement] = useState<HTMLElement | null>(null);
+  
+  // Animation state management
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [animationState, setAnimationState] = useState<'entering' | 'visible' | 'exiting'>('entering');
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigationDirection, setNavigationDirection] = useState<'prev' | 'next' | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Touch handling state for swipe navigation
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+
+  // Focus trap management
+  const [focusableElements, setFocusableElements] = useState<HTMLElement[]>([]);
+  const [firstFocusableElement, setFirstFocusableElement] = useState<HTMLElement | null>(null);
+  const [lastFocusableElement, setLastFocusableElement] = useState<HTMLElement | null>(null);
+
+  // Get tenant branding
+  const branding = useTenantBranding();
+
+  // Default theme values using tenant branding
+  const defaultTheme: CalendarTheme = {
+    primaryColor: branding.primary_color || '#3B82F6',
+    foregroundColor: branding.foreground_color || '#FFFFFF',
+    textColor: branding.textOnForeground || '#1F2937',
+    borderColor: branding.accent_color || '#E5E7EB',
+    hoverColor: branding.accent_color ? `${branding.accent_color}10` : '#F3F4F6',
+    disabledColor: '#9CA3AF',
+    todayColor: branding.primary_color || '#3B82F6'
+  };
+
+  const calendarTheme: CalendarTheme = {
+    ...defaultTheme,
+    ...theme
+  };
+
+  // Calculate second month
+  const secondMonth = getNextMonth(currentMonth);
+
+  // Focus management
+  const findFocusableElements = useCallback(() => {
+    if (!popupRef.current) return [];
+
+    const focusableSelectors = [
+      'button:not([disabled])',
+      '[href]',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])'
+    ];
+
+    const elements = Array.from(
+      popupRef.current.querySelectorAll(focusableSelectors.join(', '))
+    ) as HTMLElement[];
+
+    return elements.filter(el => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+  }, []);
+
+  // Update focusable elements when component mounts or updates
+  useEffect(() => {
+    if (isOpen) {
+      const elements = findFocusableElements();
+      setFocusableElements(elements);
+      setFirstFocusableElement(elements[0] || null);
+      setLastFocusableElement(elements[elements.length - 1] || null);
+    }
+  }, [isOpen, findFocusableElements, currentMonth]);
+
+  // Handle animation states
+  useEffect(() => {
+    if (isOpen) {
+      setIsAnimating(true);
+      setAnimationState('entering');
+      
+      // Set to visible after entrance animation
+      const enterTimer = setTimeout(() => {
+        setAnimationState('visible');
+        setIsAnimating(false);
+      }, 300);
+      
+      return () => clearTimeout(enterTimer);
+    } else {
+      if (animationState === 'visible') {
+        setIsAnimating(true);
+        setAnimationState('exiting');
+        
+        // Allow exit animation to complete
+        const exitTimer = setTimeout(() => {
+          setIsAnimating(false);
+        }, 200);
+        
+        return () => clearTimeout(exitTimer);
+      }
+    }
+  }, [isOpen, animationState]);
+
+  // Enhanced close handler with exit animation
+  const handleAnimatedClose = useCallback(() => {
+    if (animationState === 'visible') {
+      setAnimationState('exiting');
+      setIsAnimating(true);
+      
+      // Call onClose after exit animation
+      setTimeout(() => {
+        onClose();
+        setIsAnimating(false);
+      }, 200);
+    } else {
+      onClose();
+    }
+  }, [animationState, onClose]);
+
+  // Handle focus trapping
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (!isOpen) return;
+
+    switch (event.key) {
+      case 'Escape':
+        event.preventDefault();
+        handleAnimatedClose();
+        break;
+
+      case 'Tab':
+        if (focusableElements.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        if (event.shiftKey) {
+          // Shift+Tab: focus previous element
+          if (document.activeElement === firstFocusableElement) {
+            event.preventDefault();
+            lastFocusableElement?.focus();
+          }
+        } else {
+          // Tab: focus next element
+          if (document.activeElement === lastFocusableElement) {
+            event.preventDefault();
+            firstFocusableElement?.focus();
+          }
+        }
+        break;
+
+      default:
+        break;
+    }
+  }, [isOpen, handleAnimatedClose, focusableElements, firstFocusableElement, lastFocusableElement]);
+
+  // Add keyboard event listeners
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [isOpen, handleKeyDown]);
+
+  // Focus management when opening/closing
+  useEffect(() => {
+    if (isOpen) {
+      // Store previously focused element
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      
+      // Focus first focusable element in popup
+      setTimeout(() => {
+        firstFocusableElement?.focus();
+      }, 100);
+    } else {
+      // Restore focus to previously focused element
+      if (previousFocusRef.current) {
+        previousFocusRef.current.focus();
+      }
+    }
+  }, [isOpen, firstFocusableElement]);
+
+  // Handle date selection with announcements
+  const handleDateSelect = useCallback((date: Date) => {
+    const dateString = date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    setAnnouncement(`Selected ${dateString}`);
+    setLiveAnnouncement(`Date selected: ${dateString}`);
+    
+    onDateSelect(date);
+  }, [onDateSelect]);
+
+  // Handle month navigation
+  const handlePreviousMonth = useCallback(() => {
+    if (isNavigating || isLoading) return;
+    
+    setIsNavigating(true);
+    setIsLoading(true);
+    setNavigationDirection('prev');
+    
+    // Wait for animation to start
+    setTimeout(() => {
+      const newMonth = new Date(currentMonth);
+      newMonth.setMonth(currentMonth.getMonth() - 1);
+      onMonthChange(newMonth);
+      
+      const monthYear = getMonthYearDisplay(newMonth);
+      setAnnouncement(`Navigated to ${monthYear}`);
+      setLiveAnnouncement(`Calendar showing ${monthYear}`);
+      
+      // Reset navigation state after animation
+      setTimeout(() => {
+        setIsNavigating(false);
+        setIsLoading(false);
+        setNavigationDirection(null);
+      }, 300);
+    }, 150);
+  }, [currentMonth, onMonthChange, isNavigating, isLoading]);
+
+  const handleNextMonth = useCallback(() => {
+    if (isNavigating || isLoading) return;
+    
+    setIsNavigating(true);
+    setIsLoading(true);
+    setNavigationDirection('next');
+    
+    // Wait for animation to start
+    setTimeout(() => {
+      const newMonth = new Date(currentMonth);
+      newMonth.setMonth(currentMonth.getMonth() + 1);
+      onMonthChange(newMonth);
+      
+      const monthYear = getMonthYearDisplay(newMonth);
+      setAnnouncement(`Navigated to ${monthYear}`);
+      setLiveAnnouncement(`Calendar showing ${monthYear}`);
+      
+      // Reset navigation state after animation
+      setTimeout(() => {
+        setIsNavigating(false);
+        setIsLoading(false);
+        setNavigationDirection(null);
+      }, 300);
+    }, 150);
+  }, [currentMonth, onMonthChange, isNavigating, isLoading]);
+
+  const handleGoToMonth = useCallback((month: Date) => {
+    if (isNavigating || isLoading) return;
+    
+    setIsNavigating(true);
+    setIsLoading(true);
+    
+    // Determine direction based on month comparison
+    const direction = month.getTime() > currentMonth.getTime() ? 'next' : 'prev';
+    setNavigationDirection(direction);
+    
+    setTimeout(() => {
+      onMonthChange(month);
+      
+      const monthYear = getMonthYearDisplay(month);
+      setAnnouncement(`Navigated to ${monthYear}`);
+      setLiveAnnouncement(`Calendar showing ${monthYear}`);
+      
+      // Reset navigation state after animation
+      setTimeout(() => {
+        setIsNavigating(false);
+        setIsLoading(false);
+        setNavigationDirection(null);
+      }, 300);
+    }, 150);
+  }, [onMonthChange, currentMonth, isNavigating, isLoading]);
+
+  // Touch handlers for swipe navigation
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+    const isLeftSwipe = distanceX > 50;
+    const isRightSwipe = distanceX < -50;
+    const isUpSwipe = distanceY > 50;
+    const isDownSwipe = distanceY < -50;
+
+    // Only handle horizontal swipes (left/right)
+    if (Math.abs(distanceX) > Math.abs(distanceY)) {
+      if (isLeftSwipe) {
+        handleNextMonth();
+      } else if (isRightSwipe) {
+        handlePreviousMonth();
+      }
+    }
+
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // Don't render if not open and not animating
+  if (!isOpen && !isAnimating) return null;
+
+  // Calculate popup positioning
+  const popupStyle: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 9999,
+    backgroundColor: calendarTheme.foregroundColor,
+    border: `1px solid ${calendarTheme.borderColor}`,
+    borderRadius: '12px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    padding: '0',
+    minWidth: '320px',
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+    overflow: 'hidden',
+    ...position && {
+      top: position.top,
+      left: position.left,
+      width: position.width
+    }
+  };
+
+  // Default positioning if no position provided
+  if (!position) {
+    popupStyle.top = '50%';
+    popupStyle.left = '50%';
+    popupStyle.transform = 'translate(-50%, -50%)';
+  }
+
+  const calendarContent = (
+    <div
+      ref={popupRef}
+      className={`calendar-popup ${className} ${animationState}`}
+      style={popupStyle}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Date range picker calendar"
+      aria-describedby={triggerId ? `trigger-${triggerId}` : undefined}
+    >
+      {/* Calendar Header */}
+      <CalendarHeader
+        currentMonth={currentMonth}
+        goToPreviousMonth={handlePreviousMonth}
+        goToNextMonth={handleNextMonth}
+        goToMonth={handleGoToMonth}
+        theme={{
+          primaryColor: calendarTheme.primaryColor,
+          textColor: calendarTheme.textColor,
+          hoverColor: calendarTheme.hoverColor
+        }}
+        className="border-b"
+      />
+      
+      {/* Loading indicator */}
+      {isLoading && (
+        <div className="loading-indicator" role="status" aria-live="polite">
+          <div className="loading-spinner" aria-label="Loading new month">
+            <div className="spinner"></div>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar Body */}
+      <div 
+        className="calendar-body p-4 sm:p-6 touch-pan-x"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Desktop: Dual-month side-by-side layout (≥1024px) */}
+        <div className="hidden lg:flex lg:space-x-8">
+          <div className={`month-container flex-1 ${isNavigating ? `navigating-${navigationDirection}` : ''}`}>
+            <MonthView
+              month={currentMonth}
+              selectedRange={selectedRange}
+              hoveredDate={hoveredDate}
+              onDateClick={handleDateSelect}
+              onDateHover={onDateHover}
+              config={config}
+              showHeader={false}
+              className="w-full"
+            />
+          </div>
+          <div className={`month-container flex-1 ${isNavigating ? `navigating-${navigationDirection}` : ''}`}>
+            <MonthView
+              month={secondMonth}
+              selectedRange={selectedRange}
+              hoveredDate={hoveredDate}
+              onDateClick={handleDateSelect}
+              onDateHover={onDateHover}
+              config={config}
+              showHeader={false}
+              className="w-full"
+            />
+          </div>
+        </div>
+
+        {/* Tablet: Dual-month stacked layout (640px - 1023px) */}
+        <div className="hidden sm:block lg:hidden">
+          <div className="space-y-6">
+            <div className={`month-container ${isNavigating ? `navigating-${navigationDirection}` : ''}`}>
+              <MonthView
+                month={currentMonth}
+                selectedRange={selectedRange}
+                hoveredDate={hoveredDate}
+                onDateClick={handleDateSelect}
+                onDateHover={onDateHover}
+                config={config}
+                showHeader={false}
+                className="w-full"
+              />
+            </div>
+            <div className={`month-container ${isNavigating ? `navigating-${navigationDirection}` : ''}`}>
+              <MonthView
+                month={secondMonth}
+                selectedRange={selectedRange}
+                hoveredDate={hoveredDate}
+                onDateClick={handleDateSelect}
+                onDateHover={onDateHover}
+                config={config}
+                showHeader={false}
+                className="w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile: Single month layout (<640px) */}
+        <div className="sm:hidden">
+          <div className={`mobile-month-view ${isNavigating ? `navigating-${navigationDirection}` : ''}`}>
+            <MonthView
+              month={currentMonth}
+              selectedRange={selectedRange}
+              hoveredDate={hoveredDate}
+              onDateClick={handleDateSelect}
+              onDateHover={onDateHover}
+              config={config}
+              showHeader={false}
+              className="w-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Live announcements for screen readers */}
+      <div 
+        aria-live="polite" 
+        aria-atomic="true" 
+        className="sr-only"
+        role="status"
+      >
+        {announcement}
+      </div>
+      
+      <div 
+        aria-live="assertive" 
+        aria-atomic="true" 
+        className="sr-only"
+        role="alert"
+      >
+        {liveAnnouncement}
+      </div>
+
+      {/* Inline styles for theme customization */}
+      <style>{`
+        .calendar-popup {
+          color: ${calendarTheme.textColor};
+          background-color: ${calendarTheme.foregroundColor};
+          border-color: ${calendarTheme.borderColor};
+          font-family: ${branding.font_family || 'Inter'}, sans-serif;
+        }
+        
+        .calendar-popup .month-view {
+          --primary-color: ${calendarTheme.primaryColor};
+          --hover-color: ${calendarTheme.hoverColor};
+          --disabled-color: ${calendarTheme.disabledColor};
+          --today-color: ${calendarTheme.todayColor};
+        }
+        
+        /* Touch-friendly interactions */
+        .touch-target {
+          min-width: 44px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .touch-pan-x {
+          touch-action: pan-x;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        
+        /* Mobile responsive adjustments (< 640px) */
+        @media (max-width: 639px) {
+          .calendar-popup {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: calc(100vw - 1rem) !important;
+            max-width: 380px !important;
+            max-height: 85vh !important;
+          }
+          
+          .mobile-month-view {
+            padding: 0.5rem;
+          }
+          
+          .mobile-month-view .date-cell button {
+            width: 44px !important;
+            height: 44px !important;
+            font-size: 16px !important;
+          }
+        }
+        
+        /* Tablet responsive adjustments (640px - 1023px) */
+        @media (min-width: 640px) and (max-width: 1023px) {
+          .calendar-popup {
+            min-width: 400px;
+            max-width: 500px;
+          }
+          
+          .calendar-body {
+            padding: 1.5rem;
+          }
+        }
+        
+        /* Desktop adjustments (≥ 1024px) */
+        @media (min-width: 1024px) {
+          .calendar-popup {
+            min-width: 640px;
+            max-width: 800px;
+          }
+        }
+        
+        /* Enhanced animations for popup entrance and exit */
+        .calendar-popup.entering {
+          animation: calendar-popup-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        .calendar-popup.exiting {
+          animation: calendar-popup-exit 0.2s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+        }
+        
+        .calendar-popup.visible {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        
+        @keyframes calendar-popup-enter {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9) translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) translateY(0);
+          }
+        }
+        
+        @keyframes calendar-popup-exit {
+          from {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95) translateY(5px);
+          }
+        }
+        
+        /* Focus styles */
+        .calendar-popup:focus {
+          outline: none;
+        }
+        
+        /* Enhanced backdrop overlay with animation */
+        .calendar-popup::before {
+          content: '';
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.1);
+          z-index: -1;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        
+        .calendar-popup.entering::before,
+        .calendar-popup.visible::before {
+          opacity: 1;
+        }
+        
+        .calendar-popup.exiting::before {
+          opacity: 0;
+        }
+        
+        /* Enhanced smooth transitions for month changes */
+        .month-container {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transform-origin: center;
+        }
+        
+        .month-container.navigating-prev {
+          animation: slide-out-right 0.15s ease-out forwards,
+                     slide-in-left 0.15s ease-out 0.15s forwards;
+        }
+        
+        .month-container.navigating-next {
+          animation: slide-out-left 0.15s ease-out forwards,
+                     slide-in-right 0.15s ease-out 0.15s forwards;
+        }
+        
+        @keyframes slide-out-left {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(-20px);
+            opacity: 0;
+          }
+        }
+        
+        @keyframes slide-in-right {
+          from {
+            transform: translateX(20px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slide-out-right {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(20px);
+            opacity: 0;
+          }
+        }
+        
+        @keyframes slide-in-left {
+          from {
+            transform: translateX(-20px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        /* Prevent text selection during swipe */
+        .touch-pan-x * {
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          -khtml-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+        }
+        
+        /* Loading indicator styles */
+        .loading-indicator {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(2px);
+          z-index: 10;
+        }
+        
+        .loading-spinner {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1rem;
+        }
+        
+        .spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid ${calendarTheme.borderColor};
+          border-top: 3px solid ${calendarTheme.primaryColor};
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        /* Smooth loading state transitions */
+        .loading-indicator {
+          animation: fadeIn 0.2s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+
+  // Render to portal
+  return createPortal(calendarContent, document.body);
+}
+
+export default CalendarPopup;

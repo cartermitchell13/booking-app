@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useTenantSupabase } from '@/lib/tenant-context';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, DollarSign, TrendingUp, AlertTriangle, Calendar, Building } from 'lucide-react';
+import { CreditCard, DollarSign, TrendingUp, AlertTriangle, Calendar, Building, Search, Filter } from 'lucide-react';
+import { GeistSans } from 'geist/font/sans';
 
 interface SubscriptionData {
   id: string;
@@ -27,6 +28,7 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { supabase } = useTenantSupabase();
 
@@ -113,9 +115,13 @@ export default function SubscriptionsPage() {
     loadSubscriptions();
   }, [supabase]);
 
-  const filteredSubscriptions = subscriptions.filter(sub => 
-    statusFilter === 'all' || sub.status === statusFilter
-  );
+  const filteredSubscriptions = subscriptions.filter(sub => {
+    const matchesStatus = statusFilter === 'all' || sub.status === statusFilter;
+    const matchesSearch = searchTerm === '' || 
+      sub.tenant_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.tenant_slug.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -146,202 +152,233 @@ export default function SubscriptionsPage() {
   };
 
   const getTotalRevenue = () => {
-    return filteredSubscriptions.reduce((sum, sub) => sum + sub.monthly_revenue, 0);
+    return subscriptions.reduce((sum, sub) => sum + sub.monthly_revenue, 0);
   };
 
   const getAverageRevenue = () => {
     const total = getTotalRevenue();
-    return filteredSubscriptions.length > 0 ? total / filteredSubscriptions.length : 0;
+    return subscriptions.length > 0 ? total / subscriptions.length : 0;
+  };
+
+  const getActiveSubscriptions = () => {
+    return subscriptions.filter(sub => sub.status === 'active').length;
+  };
+
+  const getTrialSubscriptions = () => {
+    return subscriptions.filter(sub => sub.status === 'trial').length;
+  };
+
+  const getDaysUntilPeriodEnd = (periodEnd: string) => {
+    const endDate = new Date(periodEnd);
+    const today = new Date();
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className={`min-h-screen bg-gray-50 p-6 lg:p-8 geist-dashboard ${GeistSans.className}`}>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Subscription Management</h1>
-        <p className="text-gray-600 mt-2">Monitor billing and subscription status across all tenants</p>
-      </div>
+    <div className={`min-h-screen bg-gray-50 p-6 lg:p-8 geist-dashboard ${GeistSans.className}`}>
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Subscription Management</h1>
+            <p className="text-gray-600 mt-1">Monitor billing and subscription status across all tenants</p>
+          </div>
+          <div className="text-sm text-gray-500">
+            {filteredSubscriptions.length} of {subscriptions.length} subscriptions
+          </div>
+        </div>
 
-      {/* Revenue Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total MRR</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${getTotalRevenue().toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Monthly Recurring Revenue</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${Math.round(getAverageRevenue()).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Per tenant</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {subscriptions.filter(s => s.status === 'active').length}
+        {/* Revenue Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-gray-900">${getTotalRevenue().toLocaleString()}</p>
+                <p className="text-sm text-gray-600">Total MRR</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {subscriptions.filter(s => s.status === 'trial').length} in trial
-            </p>
-          </CardContent>
-        </Card>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Issues</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {subscriptions.filter(s => s.status === 'past_due' || s.status === 'suspended').length}
+          <Card className="p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-gray-900">${Math.round(getAverageRevenue()).toLocaleString()}</p>
+                <p className="text-sm text-gray-600">Average Revenue</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">Require attention</p>
-          </CardContent>
-        </Card>
-      </div>
+          </Card>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-6">
+          <Card className="p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-gray-900">{getActiveSubscriptions()}</p>
+                <p className="text-sm text-gray-600">Active Subscriptions</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-gray-900">{getTrialSubscriptions()}</p>
+                <p className="text-sm text-gray-600">Trial Subscriptions</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Search and Filters */}
+        <Card className="p-6">
           <div className="flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700">Filter by status:</label>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search subscriptions by tenant name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">All Statuses</option>
+              <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="trial">Trial</option>
               <option value="past_due">Past Due</option>
               <option value="cancelled">Cancelled</option>
               <option value="suspended">Suspended</option>
             </select>
-            <div className="text-sm text-gray-500">
-              {filteredSubscriptions.length} subscriptions
-            </div>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
 
-      {/* Subscriptions Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Subscriptions</CardTitle>
-          <CardDescription>
-            Billing details and subscription status for all tenants
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Tenant</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Plan</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Monthly Revenue</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Usage</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Next Billing</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Transaction Fee</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSubscriptions.map((subscription) => (
-                  <tr key={subscription.id} className="border-b hover:bg-gray-50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Building className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{subscription.tenant_name}</p>
-                          <p className="text-sm text-gray-500">@{subscription.tenant_slug}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge variant={getPlanBadgeVariant(subscription.plan)}>
-                        {formatPlan(subscription.plan)}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge variant={getStatusBadgeVariant(subscription.status)}>
-                        {formatStatus(subscription.status)}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="font-medium">${subscription.monthly_revenue}</span>
-                      <span className="text-gray-500 text-sm">/month</span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="text-sm">
-                        <span className="font-medium">{subscription.bookings_this_month}</span>
-                        {subscription.bookings_limit && (
-                          <span className="text-gray-500"> / {subscription.bookings_limit}</span>
-                        )}
-                        <div className="text-gray-500">bookings</div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {new Date(subscription.current_period_end).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="text-sm font-medium">{subscription.transaction_fee_percent}%</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* Subscriptions List */}
+        <div className="space-y-4">
+          {filteredSubscriptions.map((subscription) => (
+            <Card key={subscription.id} className="p-6 hover:shadow-md transition-shadow">
+              <div className="space-y-4">
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <Building className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{subscription.tenant_name}</h3>
+                      <p className="text-sm text-gray-500">@{subscription.tenant_slug}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant={getPlanBadgeVariant(subscription.plan)}>
+                      {formatPlan(subscription.plan)}
+                    </Badge>
+                    <Badge variant={getStatusBadgeVariant(subscription.status)}>
+                      {formatStatus(subscription.status)}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-semibold text-gray-900">${subscription.monthly_revenue}</p>
+                    <p className="text-sm text-gray-600">Monthly Revenue</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-semibold text-gray-900">{subscription.bookings_this_month}</p>
+                    <p className="text-sm text-gray-600">Bookings This Month</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-semibold text-gray-900">{subscription.transaction_fee_percent}%</p>
+                    <p className="text-sm text-gray-600">Transaction Fee</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-semibold text-gray-900">
+                      {getDaysUntilPeriodEnd(subscription.current_period_end)}
+                    </p>
+                    <p className="text-sm text-gray-600">Days Until Renewal</p>
+                  </div>
+                </div>
+
+                {/* Billing Period */}
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">Billing Period</span>
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    {new Date(subscription.current_period_start).toLocaleDateString()} - {new Date(subscription.current_period_end).toLocaleDateString()}
+                  </div>
+                </div>
+
+                {/* Usage Limits (if applicable) */}
+                {subscription.bookings_limit && (
+                  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-900">Booking Usage</span>
+                    </div>
+                    <div className="text-sm text-amber-800">
+                      {subscription.bookings_this_month} / {subscription.bookings_limit} bookings
+                      ({Math.round((subscription.bookings_this_month / subscription.bookings_limit) * 100)}% used)
+                    </div>
+                  </div>
+                )}
+
+                {/* Warning for past due */}
+                {subscription.status === 'past_due' && (
+                  <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                    <span className="text-sm font-medium text-red-900">
+                      Payment is overdue. Subscription may be suspended soon.
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          ))}
 
           {filteredSubscriptions.length === 0 && (
-            <div className="text-center py-8">
+            <Card className="p-12 text-center">
               <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No subscriptions found</h3>
-              <p className="text-gray-500">Try adjusting your filter criteria</p>
-            </div>
+              <p className="text-gray-500">
+                {searchTerm || statusFilter !== 'all'
+                  ? 'No subscriptions match your current filters.'
+                  : 'No subscriptions have been created yet.'
+                }
+              </p>
+            </Card>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Error State */}
-      {error && (
-        <Card>
-          <CardContent className="text-center py-12">
-            <div className="text-red-600 font-medium">Error loading subscriptions</div>
-            <div className="text-gray-500 text-sm mt-1">{error}</div>
-          </CardContent>
-        </Card>
-      )}
+        </div>
+      </div>
     </div>
   );
 } 

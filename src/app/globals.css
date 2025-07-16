@@ -1,14 +1,5 @@
 @import "tailwindcss";
 
-/* Custom font - Cultivated Mind True North */
-@font-face {
-  font-family: 'Cultivated Mind True North';
-  src: url('/fonts/Cultivated Mind - True North.otf') format('opentype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --background: #faf9f6;
   --foreground: #21452e;
@@ -21,7 +12,7 @@
   --border: #e8e5de;
   --input: #faf6e1;
   --ring: #637752;
-  --font-heading: 'Cultivated Mind True North', sans-serif;
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   
   /* Tenant branding variables - can be overridden dynamically */
   --tenant-primary: #10B981;
@@ -78,7 +69,32 @@ body {
 h1, h2, h3, h4, h5, h6, 
 .heading-font {
   font-family: var(--font-heading);
-  font-weight: normal;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Admin/onboarding pages use Geist font */
+.geist-admin h1,
+.geist-admin h2,
+.geist-admin h3,
+.geist-admin h4,
+.geist-admin h5,
+.geist-admin h6,
+.geist-dashboard h1,
+.geist-dashboard h2,
+.geist-dashboard h3,
+.geist-dashboard h4,
+.geist-dashboard h5,
+.geist-dashboard h6,
+.landing-page-theme h1,
+.landing-page-theme h2,
+.landing-page-theme h3,
+.landing-page-theme h4,
+.landing-page-theme h5,
+.landing-page-theme h6 {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 /* Custom scrollbar */
@@ -181,156 +197,29 @@ h1, h2, h3, h4, h5, h6,
 
 /* Tenant branding utility classes */
 .bg-tenant-primary {
-  background-color: var(--tenant-primary) !important;
+  background-color: var(--tenant-primary);
 }
 
 .bg-tenant-secondary {
-  background-color: var(--tenant-secondary) !important;
+  background-color: var(--tenant-secondary);
 }
 
 .text-tenant-primary {
-  color: var(--tenant-primary) !important;
+  color: var(--tenant-primary);
 }
 
 .text-tenant-secondary {
-  color: var(--tenant-secondary) !important;
+  color: var(--tenant-secondary);
 }
 
 .border-tenant-primary {
-  border-color: var(--tenant-primary) !important;
+  border-color: var(--tenant-primary);
 }
 
 .border-tenant-secondary {
-  border-color: var(--tenant-secondary) !important;
+  border-color: var(--tenant-secondary);
 }
 
 .font-tenant {
-  font-family: var(--tenant-font) !important;
-}
-
-/* Ensure tenant font is applied to customer-facing content */
-/* This should override any other font declarations for customer pages */
-body:not(.geist-admin):not(.geist-dashboard) h1,
-body:not(.geist-admin):not(.geist-dashboard) h2,
-body:not(.geist-admin):not(.geist-dashboard) h3,
-body:not(.geist-admin):not(.geist-dashboard) h4,
-body:not(.geist-admin):not(.geist-dashboard) h5,
-body:not(.geist-admin):not(.geist-dashboard) h6 {
-  font-family: var(--tenant-font) !important;
-}
-
-/* Apply tenant font to all customer-facing text elements */
-main:not([class*="admin"]):not([class*="dashboard"]) {
   font-family: var(--tenant-font);
-}
-
-/* Stronger rule for inline styles using tenant font */
-[style*="--tenant-font"] {
-  font-family: var(--tenant-font) !important;
-}
-
-/* Admin and Dashboard Geist Font Overrides */
-/* Override heading fonts in admin and dashboard sections to use Geist */
-
-/* MOST SPECIFIC - Target our custom classes */
-.geist-admin h1,
-.geist-admin h2,
-.geist-admin h3,
-.geist-admin h4,
-.geist-admin h5,
-.geist-admin h6,
-.geist-dashboard h1,
-.geist-dashboard h2,
-.geist-dashboard h3,
-.geist-dashboard h4,
-.geist-dashboard h5,
-.geist-dashboard h6 {
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.03em !important; /* -3% letter spacing */
-}
-
-/* Admin section heading overrides */
-[class*="admin"] h1,
-[class*="admin"] h2,
-[class*="admin"] h3,
-[class*="admin"] h4,
-[class*="admin"] h5,
-[class*="admin"] h6,
-body:has([href^="/admin"]) h1,
-body:has([href^="/admin"]) h2,
-body:has([href^="/admin"]) h3,
-body:has([href^="/admin"]) h4,
-body:has([href^="/admin"]) h5,
-body:has([href^="/admin"]) h6,
-main:has([href*="/admin"]) h1,
-main:has([href*="/admin"]) h2,
-main:has([href*="/admin"]) h3,
-main:has([href*="/admin"]) h4,
-main:has([href*="/admin"]) h5,
-main:has([href*="/admin"]) h6 {
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  font-weight: 600;
-  letter-spacing: -0.03em !important; /* -3% letter spacing */
-}
-
-/* Dashboard section heading overrides */
-[class*="dashboard"] h1,
-[class*="dashboard"] h2,
-[class*="dashboard"] h3,
-[class*="dashboard"] h4,
-[class*="dashboard"] h5,
-[class*="dashboard"] h6,
-body:has([href^="/dashboard"]) h1,
-body:has([href^="/dashboard"]) h2,
-body:has([href^="/dashboard"]) h3,
-body:has([href^="/dashboard"]) h4,
-body:has([href^="/dashboard"]) h5,
-body:has([href^="/dashboard"]) h6,
-main:has([href*="/dashboard"]) h1,
-main:has([href*="/dashboard"]) h2,
-main:has([href*="/dashboard"]) h3,
-main:has([href*="/dashboard"]) h4,
-main:has([href*="/dashboard"]) h5,
-main:has([href*="/dashboard"]) h6 {
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  font-weight: 600;
-  letter-spacing: -0.03em !important; /* -3% letter spacing */
-}
-
-/* More specific selectors for admin and dashboard pages */
-/* Target pages that start with /admin or /dashboard */
-body[data-page^="/admin"] h1,
-body[data-page^="/admin"] h2,
-body[data-page^="/admin"] h3,
-body[data-page^="/admin"] h4,
-body[data-page^="/admin"] h5,
-body[data-page^="/admin"] h6,
-body[data-page^="/dashboard"] h1,
-body[data-page^="/dashboard"] h2,
-body[data-page^="/dashboard"] h3,
-body[data-page^="/dashboard"] h4,
-body[data-page^="/dashboard"] h5,
-body[data-page^="/dashboard"] h6 {
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  font-weight: 600;
-  letter-spacing: -0.03em !important; /* -3% letter spacing */
-}
-
-/* Universal override for any element with Geist class ancestry */
-.geist-container h1,
-.geist-container h2,
-.geist-container h3,
-.geist-container h4,
-.geist-container h5,
-.geist-container h6,
-[class*="GeistSans"] h1,
-[class*="GeistSans"] h2,
-[class*="GeistSans"] h3,
-[class*="GeistSans"] h4,
-[class*="GeistSans"] h5,
-[class*="GeistSans"] h6 {
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  font-weight: 600;
-  letter-spacing: -0.03em !important; /* -3% letter spacing */
 }

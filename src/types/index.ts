@@ -34,12 +34,9 @@ export interface Location {
 }
 
 export interface SearchParams {
-  originId?: string;
   destinationId?: string;
-  outboundDate: string;
-  inboundDate?: string;
-  passengers: PassengerCounts;
-  tripType: 'one-way' | 'round-trip';
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface PassengerCounts {
@@ -48,13 +45,23 @@ export interface PassengerCounts {
   children: number;
 }
 
+// Search filters interface matching what the search page expects
+export interface SearchFilters {
+  origin?: string;
+  destination?: string;
+  priceMin?: number;
+  priceMax?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  availableSeats?: number;
+  sortBy: 'price_low' | 'price_high' | 'departure_time' | 'popularity';
+}
+
 export interface SearchContextType extends SearchParams {
-  setOriginId: (id: string) => void;
   setDestinationId: (id: string) => void;
-  setOutboundDate: (date: string) => void;
-  setInboundDate: (date: string | undefined) => void;
-  setPassengers: (passengers: PassengerCounts) => void;
-  setTripType: (type: 'one-way' | 'round-trip') => void;
+  setDateFrom: (date: string | undefined) => void;
+  setDateTo: (date: string | undefined) => void;
+  setDateRange: (dateFrom: string | undefined, dateTo: string | undefined) => void;
   reset: () => void;
 }
 
@@ -83,6 +90,8 @@ export interface Tenant {
   slug: string;
   name: string;
   domain?: string;
+  domain_verified?: boolean;
+  domain_verified_at?: string;
   branding: BrandingConfig;
   settings: TenantSettings;
   subscription_plan: 'starter' | 'professional' | 'enterprise';
@@ -105,6 +114,9 @@ export interface BrandingConfig {
   custom_font_name?: string;   // Original filename of uploaded font
   custom_font_family?: string; // Generated CSS font-family name
   custom_css?: string;
+  // Font weight preferences for headings
+  heading_font_weight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  prefer_light_headings?: boolean; // Legacy boolean support
 }
 
 export interface TenantSettings {
@@ -151,6 +163,7 @@ export interface TenantTrip {
   tenant_id: string;
   title: string;
   description?: string;
+  location?: string;
   destination: string;
   departure_location: string;
   departure_time: string;
@@ -243,4 +256,14 @@ export interface BookingSearchParams {
   date?: string;
   passengers?: string;
   tripId?: string;
-} 
+}
+
+// Re-export calendar types
+export type {
+  DateRange,
+  CalendarDate,
+  CalendarTheme,
+  CalendarConfig,
+  CalendarNavigation,
+  DateRangeSelectionState
+} from './calendar'; 

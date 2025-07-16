@@ -69,20 +69,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser | null> => {
-    if (!supabase || !tenant?.id) return null;
+    if (!supabase) return null;
 
     try {
+      console.log('Fetching user data for auth user:', authUser.id);
+      
+      // Don't filter by tenant_id during auth - get user data first, then handle context
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
-        .eq('tenant_id', tenant.id)
         .single();
 
-      if (error || !data) {
-        console.error('User data fetch error:', error);
+      if (error) {
+        console.error('User data fetch error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          userId: authUser.id,
+          fullError: error
+        });
         return null;
       }
+
+      if (!data) {
+        console.error('No user data found for auth user:', authUser.id);
+        return null;
+      }
+
+      console.log('Successfully fetched user data:', {
+        id: data.id,
+        email: data.email,
+        role: data.role,
+        tenant_id: data.tenant_id
+      });
 
       return {
         id: data.id,
@@ -96,10 +117,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         created_at: data.created_at,
       };
     } catch (err) {
-      console.error('Error fetching user data:', err);
+      console.error('Exception fetching user data:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error',
+        userId: authUser.id,
+        stack: err instanceof Error ? err.stack : undefined
+      });
       return null;
     }
-  }, [tenant?.id]);
+  }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) {
@@ -119,11 +145,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw new Error('Login failed');
     }
 
-    // Verify user belongs to current tenant
+    // Get user data (we'll handle tenant context elsewhere)
     const userData = await fetchUserData(authData.user);
     if (!userData) {
       await supabase.auth.signOut();
-      throw new Error('Account not found for this domain. Please check your email or register for a new account.');
+      throw new Error('Account not found. Please check your email or contact support.');
     }
   }, [fetchUserData]);
 
@@ -136,6 +162,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw new Error('Authentication service is not configured');
     }
 
+    // For mock tenant ID, use the real ParkBus tenant ID (same as tenant context logic)
+    const actualTenantId = tenant.id === 'mock-parkbus-id' 
+      ? '20ee5f83-1019-46c7-9382-05a6f1ded9bf' 
+      : tenant.id;
+
+    console.log('SignUp: Using actual tenant ID:', actualTenantId, 'for tenant:', tenant.name);
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -144,12 +177,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
           first_name: userData.firstName,
           last_name: userData.lastName,
           phone: userData.phone,
-          tenant_id: tenant.id
+          tenant_id: actualTenantId
         }
       }
     });
 
     if (authError) {
+      console.error('Auth signup error:', authError);
       throw authError;
     }
 
@@ -157,12 +191,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw new Error('Registration failed');
     }
 
+    console.log('Auth user created successfully:', authData.user.id);
+
     // Create user record in our users table
     const { error: userError } = await supabase
       .from('users')
       .insert({
         id: authData.user.id,
-        tenant_id: tenant.id,
+        tenant_id: actualTenantId,
         email: email,
         first_name: userData.firstName,
         last_name: userData.lastName,
@@ -173,8 +209,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     if (userError) {
       console.error('User creation error:', userError);
-      // Don't throw here as the auth user was created successfully
+      // Try to clean up the auth user if our user creation failed
+      if (authData.user) {
+        console.log('Attempting to clean up auth user due to user table error');
+        await supabase.auth.admin.deleteUser(authData.user.id);
+      }
+      throw new Error(`Failed to create user profile: ${userError.message}`);
     }
+
+    console.log('User profile created successfully in users table');
   }, [tenant?.id]);
 
   const signOut = useCallback(async () => {

@@ -1,19 +1,53 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useSearch } from '@/lib/search-context'
-import { useTenantBranding } from '@/lib/tenant-context'
-import { CalendarDays, MapPin, Users, ArrowLeftRight, Search } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useTenant, useTenantBranding, useTenantSupabase } from '@/lib/tenant-context'
+import { MapPin, Search } from 'lucide-react'
 import { LocationSelect } from './location-select'
-import { DatePicker } from './date-picker'
-import { PassengerSelector } from './passenger-selector'
-import { TripTypeToggle } from './trip-type-toggle'
-export function SearchBar() {
-  const router = useRouter()
-  const search = useSearch()
+import { DateRangePicker } from './date-range-picker'
+import { ButtonLoading } from '@/components/ui'
+
+interface SearchBarProps {
+  destination?: string
+  dateFrom?: string
+  dateTo?: string
+  onSearch: (destination: string, dateFrom?: string, dateTo?: string) => void
+}
+
+export function SearchBar({ 
+  destination = '',
+  dateFrom = '',
+  dateTo = '',
+  onSearch 
+}: SearchBarProps) {
   const branding = useTenantBranding()
   const [isLoading, setIsLoading] = useState(false)
+  const [locations, setLocations] = useState<any[]>([])
+  const [localDestination, setLocalDestination] = useState(destination)
+  const [localDateFrom, setLocalDateFrom] = useState(dateFrom)
+  const [localDateTo, setLocalDateTo] = useState(dateTo)
+  const { getLocations } = useTenantSupabase()
+  
+  // Sync with external values
+  useEffect(() => {
+    setLocalDestination(destination)
+    setLocalDateFrom(dateFrom)
+    setLocalDateTo(dateTo)
+  }, [destination, dateFrom, dateTo])
+  
+  // Load locations for ID to name mapping
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const locationData = await getLocations()
+        setLocations(locationData)
+      } catch (error) {
+        console.error('Error loading locations:', error)
+      }
+    }
+    
+    loadLocations()
+  }, [getLocations])
   
   // Get optimal text color for foreground background
   const textColor = branding.textOnForeground
@@ -22,209 +56,122 @@ export function SearchBar() {
     setIsLoading(true)
     
     try {
-      // Build search URL with parameters
-      const params = new URLSearchParams()
-      
-      if (search.destinationId) {
-        params.set('destination', search.destinationId)
-      }
-      if (search.outboundDate) {
-        params.set('date_from', search.outboundDate)
-      }
-      if (search.inboundDate && search.tripType === 'round-trip') {
-        params.set('date_to', search.inboundDate)
-      }
-      
-      const totalPassengers = search.passengers.adults + search.passengers.children + search.passengers.students
-      if (totalPassengers > 0) {
-        params.set('passengers', totalPassengers.toString())
+      // Validate search inputs
+      if (localDateFrom && localDateTo) {
+        const dateFromObj = new Date(localDateFrom)
+        const dateToObj = new Date(localDateTo)
+        
+        if (dateToObj < dateFromObj) {
+          console.error('End date cannot be before start date')
+          // You could show a toast notification here
+          return
+        }
       }
       
-      // Navigate to search page with parameters
-      router.push(`/search?${params.toString()}`)
+      // Validate dates are not in the past
+      if (localDateFrom) {
+        const dateFromObj = new Date(localDateFrom)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        
+        if (dateFromObj < today) {
+          console.error('Start date cannot be in the past')
+          // You could show a toast notification here
+          return
+        }
+      }
+      
+      // Get destination name from location ID if needed
+      let destinationName = localDestination
+      if (localDestination && locations.length > 0) {
+        const destinationLocation = locations.find(loc => loc.id === localDestination)
+        if (destinationLocation) {
+          destinationName = destinationLocation.name
+        }
+      }
+      
+      // Call the search function
+      onSearch(destinationName, localDateFrom || undefined, localDateTo || undefined)
     } catch (error) {
       console.error('Search error:', error)
+      // You could show an error toast here
     } finally {
       setIsLoading(false)
     }
   }
 
-  const isSearchDisabled = false // Allow searching with any parameters
+  const handleDestinationChange = (destinationId: string) => {
+    setLocalDestination(destinationId)
+    // Optionally trigger search immediately on destination change
+    // onSearch(destinationId, localDateFrom || undefined, localDateTo || undefined)
+  }
+
+  const handleDateRangeChange = (dateFrom: string | undefined, dateTo: string | undefined) => {
+    setLocalDateFrom(dateFrom || '')
+    setLocalDateTo(dateTo || '')
+    // Optionally trigger search immediately on date range change
+    // onSearch(localDestination, dateFrom, dateTo)
+  }
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      {/* Booking Type Toggle */}
-      <div className="mb-4">
-        <TripTypeToggle 
-          value={search.tripType}
-          onChange={search.setTripType}
-        />
-      </div>
-
+    <div className="w-full">
       {/* Main Search Bar */}
       <div 
-        className="rounded-2xl shadow-lg p-6" 
+        className="rounded-2xl shadow-lg p-4 sm:p-6" 
+        data-search-bar-container
         style={{ 
-          backgroundColor: branding.foreground_color || '#FFFFFF', // Use tenant's foreground color for card background
+          backgroundColor: branding.foreground_color || '#FFFFFF',
           border: `3px solid ${branding.primary_color || '#21452e'}` 
         }}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
           
-          {/* Origin Selection */}
-          <div className="lg:col-span-3">
+          {/* Destination Selection */}
+          <div className="flex-1 min-w-0">
             <label 
-              className="block text-sm font-medium mb-2"
+              className="block text-sm md:text-base font-medium mb-2"
               style={{ color: textColor }}
             >
               <MapPin className="inline w-4 h-4 mr-1" />
               Location
             </label>
             <LocationSelect
-              value={search.originId}
-              onChange={search.setOriginId}
+              value={localDestination}
+              onChange={handleDestinationChange}
               placeholder="Select location"
-              excludeId={search.destinationId}
             />
           </div>
 
-          {/* Swap Button */}
-          <div className="lg:col-span-1 flex justify-center">
-            <button
-              type="button"
-              onClick={() => {
-                const temp = search.originId
-                if (search.destinationId) search.setOriginId(search.destinationId)
-                if (temp) search.setDestinationId(temp)
-              }}
-              className="p-2 rounded-full transition-colors"
-              style={{ 
-                border: `1px solid ${branding.primary_color || '#21452e'}`,
-                backgroundColor: 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = branding.background_color || '#F9FAFB'
-                e.currentTarget.style.borderColor = branding.accent_color || branding.secondary_color || '#637752'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-                e.currentTarget.style.borderColor = branding.primary_color || '#21452e'
-              }}
-              disabled={!search.originId || !search.destinationId}
-            >
-              <ArrowLeftRight 
-                className="w-4 h-4" 
-                style={{ color: textColor }} 
-              />
-            </button>
-          </div>
-
-          {/* Destination Selection */}
-          <div className="lg:col-span-3">
+          {/* Date Range Selection */}
+          <div className="flex-1 min-w-0">
             <label 
-              className="block text-sm font-medium mb-2"
+              className="block text-sm md:text-base font-medium mb-2"
               style={{ color: textColor }}
             >
-              <MapPin className="inline w-4 h-4 mr-1" />
-              Destination
+              Dates
             </label>
-            <LocationSelect
-              value={search.destinationId}
-              onChange={search.setDestinationId}
-              placeholder="Select destination"
-              excludeId={search.originId}
-            />
-          </div>
-
-          {/* Outbound Date */}
-          <div className="lg:col-span-2">
-            <label 
-              className="block text-sm font-medium mb-2"
-              style={{ color: textColor }}
-            >
-              <CalendarDays className="inline w-4 h-4 mr-1" />
-              Start Date
-            </label>
-            <DatePicker
-              value={search.outboundDate}
-              onChange={search.setOutboundDate}
-              placeholder="Select date"
-              minDate={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-
-          {/* Return Date (if return booking) */}
-          {search.tripType === 'round-trip' && (
-            <div className="lg:col-span-2">
-              <label 
-                className="block text-sm font-medium mb-2"
-                style={{ color: textColor }}
-              >
-                <CalendarDays className="inline w-4 h-4 mr-1" />
-                End Date
-              </label>
-              <DatePicker
-                value={search.inboundDate || ''}
-                onChange={(date: string) => search.setInboundDate(date || undefined)}
-                placeholder="Select date"
-                minDate={search.outboundDate || new Date().toISOString().split('T')[0]}
-              />
-            </div>
-          )}
-
-          {/* Passengers */}
-          <div className={search.tripType === 'round-trip' ? 'lg:col-span-1' : 'lg:col-span-2'}>
-            <label 
-              className="block text-sm font-medium mb-2"
-              style={{ color: textColor }}
-            >
-              <Users className="inline w-4 h-4 mr-1" />
-              People
-            </label>
-            <PassengerSelector
-              value={search.passengers}
-              onChange={search.setPassengers}
+            <DateRangePicker
+              dateFrom={localDateFrom}
+              dateTo={localDateTo}
+              onDateRangeChange={handleDateRangeChange}
             />
           </div>
 
           {/* Search Button */}
-          <div className={search.tripType === 'round-trip' ? 'lg:col-span-1' : 'lg:col-span-1'}>
-            <button
+          <div className="w-full sm:w-auto">
+            <ButtonLoading
+              loading={isLoading}
               onClick={handleSearch}
-              disabled={isSearchDisabled || isLoading}
-              className="w-full font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center"
-              style={{
-                backgroundColor: isSearchDisabled || isLoading 
-                  ? '#e8e5de' 
-                  : branding.primary_color || '#21452e',
-                color: isSearchDisabled || isLoading 
-                  ? branding.secondary_color || '#637752' 
-                  : '#ffffff',
-                cursor: isSearchDisabled || isLoading ? 'not-allowed' : 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                if (!isSearchDisabled && !isLoading) {
-                  e.currentTarget.style.backgroundColor = branding.secondary_color || '#637752'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSearchDisabled && !isLoading) {
-                  e.currentTarget.style.backgroundColor = branding.primary_color || '#21452e'
-                }
-              }}
+              disabled={false}
+              size="md"
+              variant="primary"
+              className="min-h-[48px] w-full sm:w-auto px-6 py-3 text-sm font-semibold whitespace-nowrap"
             >
-              {isLoading ? (
-                <div 
-                  className="animate-spin rounded-full h-5 w-5 border-b-2" 
-                  style={{ borderColor: '#ffffff' }}
-                />
-              ) : (
-                <>
-                  <Search className="w-5 h-5 mr-2" />
-                  Search
-                </>
-              )}
-            </button>
+              <div className="flex items-center justify-center">
+                <Search className="w-4 h-4 mr-2" />
+                <span>Search</span>
+              </div>
+            </ButtonLoading>
           </div>
         </div>
       </div>

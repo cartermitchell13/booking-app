@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { TripCard } from '@/components/trip-card'
 import { ViewToggle } from '@/components/ViewToggle'
 import { useTenant, useTenantSupabase, useTenantBranding } from '@/lib/tenant-context'
-import { TenantTrip } from '@/types'
+import { TenantTrip, SearchFilters } from '@/types'
 import { MapPin, Filter, SlidersHorizontal, ArrowUpDown, Search, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -24,14 +24,16 @@ const TripMap = dynamic(() => import('@/components/map/TripMap'), {
   )
 })
 
-interface SearchFilters {
-  destination?: string
-  priceMin?: number
-  priceMax?: number
-  dateFrom?: string
-  dateTo?: string
-  availableSeats?: number
-  sortBy: 'price_low' | 'price_high' | 'departure_time' | 'popularity'
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: NodeJS.Timeout
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => func(...args), delay)
+  }
 }
 
 export default function SearchPage() {
@@ -51,6 +53,7 @@ export default function SearchPage() {
 
   // Filter state
   const [filters, setFilters] = useState<SearchFilters>({
+    origin: searchParams.get('from') || undefined,
     destination: searchParams.get('destination') || undefined,
     priceMin: searchParams.get('price_min') ? parseInt(searchParams.get('price_min')!) : undefined,
     priceMax: searchParams.get('price_max') ? parseInt(searchParams.get('price_max')!) : undefined,
@@ -60,46 +63,74 @@ export default function SearchPage() {
     sortBy: (searchParams.get('sort') as SearchFilters['sortBy']) || 'popularity'
   })
 
-  // Load trips from database
-  useEffect(() => {
-    if (tenantLoading || !tenant) return
+  // Debounced search function for better performance
+  const debouncedLoadTrips = useCallback(
+    debounce(async (searchFilters: any) => {
+      if (tenantLoading || !tenant) return
 
-    const loadTrips = async () => {
       try {
         setLoading(true)
         setError(undefined)
-        const tripData = await getTrips()
+        
+        // Validate search filters
+        if (searchFilters.dateFrom && searchFilters.dateTo) {
+          const fromDate = new Date(searchFilters.dateFrom)
+          const toDate = new Date(searchFilters.dateTo)
+          
+          if (toDate < fromDate) {
+            setError('End date cannot be before start date')
+            return
+          }
+        }
+        
+        if (searchFilters.passengers && searchFilters.passengers > 50) {
+          setError('Maximum 50 passengers allowed')
+          return
+        }
+        
+        const tripData = await getTrips(searchFilters)
         setTrips(tripData || [])
       } catch (err) {
         console.error('Error loading trips:', err)
-        setError('Failed to load trips')
+        
+        // Provide more specific error messages
+        if (err instanceof Error) {
+          if (err.message.includes('network')) {
+            setError('Network error - please check your connection and try again')
+          } else if (err.message.includes('auth')) {
+            setError('Authentication error - please refresh the page')
+          } else {
+            setError(`Search failed: ${err.message}`)
+          }
+        } else {
+          setError('Failed to load trips - please try again')
+        }
       } finally {
         setLoading(false)
       }
+    }, 300), // 300ms debounce delay
+    [tenantLoading, tenant, getTrips]
+  )
+
+  // Load trips from database with search filters
+  useEffect(() => {
+    // Build search filters from URL parameters and local state
+    const searchFilters = {
+      origin: filters.origin,
+      destination: filters.destination,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      passengers: filters.availableSeats,
+      searchQuery: searchQuery
     }
+    
+    debouncedLoadTrips(searchFilters)
+  }, [tenant, tenantLoading, filters, searchQuery, debouncedLoadTrips])
 
-    loadTrips()
-  }, [tenant, tenantLoading])
-
-  // Filter and sort trips
+  // Sort trips (filtering now happens server-side)
   const filteredAndSortedTrips = useMemo(() => {
     let filtered = trips.filter(trip => {
-      // Text search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (!trip.title.toLowerCase().includes(query) && 
-            !trip.destination.toLowerCase().includes(query) &&
-            !trip.description?.toLowerCase().includes(query)) {
-          return false
-        }
-      }
-
-      // Destination filter
-      if (filters.destination && !trip.destination.toLowerCase().includes(filters.destination.toLowerCase())) {
-        return false
-      }
-
-      // Price filters
+      // Price filters (still client-side as they're not in the main search)
       if (filters.priceMin && trip.price_adult < filters.priceMin * 100) {
         return false
       }
@@ -107,13 +138,7 @@ export default function SearchPage() {
         return false
       }
 
-      // Available seats filter
-      if (filters.availableSeats && trip.available_seats < filters.availableSeats) {
-        return false
-      }
-
-      // Only show active trips
-      return trip.status === 'active'
+      return true
     })
 
     // Sort trips
@@ -133,7 +158,7 @@ export default function SearchPage() {
     })
 
     return filtered
-  }, [trips, searchQuery, filters])
+  }, [trips, filters])
 
   // Update filter
   const updateFilter = (key: keyof SearchFilters, value: any) => {
@@ -153,9 +178,13 @@ export default function SearchPage() {
     return `$${(cents / 100).toFixed(0)}`
   }
 
-  // Get unique destinations for filter dropdown
+  // Get unique destinations and origins for filter dropdowns
   const uniqueDestinations = useMemo(() => {
     return Array.from(new Set(trips.map(trip => trip.destination)))
+  }, [trips])
+
+  const uniqueOrigins = useMemo(() => {
+    return Array.from(new Set(trips.map(trip => trip.departure_location)))
   }, [trips])
 
   if (tenantLoading) {
@@ -219,7 +248,8 @@ export default function SearchPage() {
                         <h1 className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: `var(--tenant-font, 'Inter')` }}>Find Your Perfect Adventure</h1>
           <p className="text-gray-600">
             {filteredAndSortedTrips.length} {filteredAndSortedTrips.length === 1 ? 'trip' : 'trips'} available
-            {filters.destination && ` in ${filters.destination}`}
+            {filters.origin && ` from ${filters.origin}`}
+            {filters.destination && ` to ${filters.destination}`}
           </p>
         </div>
 
@@ -253,6 +283,25 @@ export default function SearchPage() {
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
                     />
                   </div>
+                </div>
+
+                {/* Origin Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Origin
+                  </label>
+                  <select
+                    value={filters.origin || ''}
+                    onChange={(e) => updateFilter('origin', e.target.value || undefined)}
+                    className="w-full p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                  >
+                    <option value="">All origins</option>
+                    {uniqueOrigins.map(origin => (
+                      <option key={origin} value={origin}>
+                        {origin}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Destination Filter */}
@@ -361,7 +410,18 @@ export default function SearchPage() {
             {loading && (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading trips...</p>
+                <p className="text-gray-600">
+                  {searchQuery || filters.origin || filters.destination || filters.dateFrom 
+                    ? 'Searching for trips...' 
+                    : 'Loading trips...'}
+                </p>
+                {(searchQuery || filters.origin || filters.destination) && (
+                  <p className="text-gray-500 text-sm mt-2">
+                    {searchQuery && `"${searchQuery}"`}
+                    {filters.origin && ` from ${filters.origin}`}
+                    {filters.destination && ` to ${filters.destination}`}
+                  </p>
+                )}
               </div>
             )}
 

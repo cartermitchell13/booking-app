@@ -221,329 +221,356 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 p-6 lg:p-8 geist-dashboard">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tenant Onboarding</h1>
-          <p className="text-gray-600 mt-2">Manage new tenant applications and setup process</p>
+    <div className="min-h-screen bg-gray-50 p-6 lg:p-8 geist-dashboard">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-gray-900">Tenant Onboarding</h1>
+            <p className="text-gray-600 mt-2">Manage new tenant applications and setup process</p>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Manual Setup
+          </button>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Manual Setup
-        </button>
-      </div>
 
-      {/* Onboarding Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Applications</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pending_applications}</div>
-            <p className="text-xs text-muted-foreground">Awaiting review</p>
-          </CardContent>
-        </Card>
+        {/* Onboarding Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600">Pending Applications</CardTitle>
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Clock className="h-4 w-4 text-orange-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-semibold text-gray-900">{stats.pending_applications}</div>
+              <p className="text-xs text-gray-500 mt-1">Awaiting review</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved This Month</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.approved_this_month}</div>
-            <p className="text-xs text-muted-foreground">New tenants</p>
-          </CardContent>
-        </Card>
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600">Approved This Month</CardTitle>
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-semibold text-gray-900">{stats.approved_this_month}</div>
+              <p className="text-xs text-gray-500 mt-1">New tenants</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Approval Time</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.average_approval_time_hours}h</div>
-            <p className="text-xs text-muted-foreground">Average processing</p>
-          </CardContent>
-        </Card>
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600">Avg Approval Time</CardTitle>
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-blue-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-semibold text-gray-900">{stats.average_approval_time_hours}h</div>
+              <p className="text-xs text-gray-500 mt-1">Average processing</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.conversion_rate}%</div>
-            <p className="text-xs text-muted-foreground">Application to tenant</p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600">Conversion Rate</CardTitle>
+              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Users className="h-4 w-4 text-purple-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-semibold text-gray-900">{stats.conversion_rate}%</div>
+              <p className="text-xs text-gray-500 mt-1">Application to tenant</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700">Filter by status:</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Applications</option>
-              <option value="pending">Pending</option>
-              <option value="reviewing">Reviewing</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="setup_in_progress">Setup In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-            <div className="text-sm text-gray-500">
-              {filteredApplications.length} applications
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Applications Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Onboarding Applications</CardTitle>
-          <CardDescription>
-            Manage tenant registration applications and setup process
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Company</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Contact</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Business Details</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Plan</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Submitted</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredApplications.map((application) => (
-                  <tr key={application.id} className="border-b hover:bg-gray-50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Building className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{application.company_name}</p>
-                          <p className="text-sm text-gray-500">
-                            {formatBusinessType(application.business_type)} • {formatCompanySize(application.company_size)}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{application.contact_name}</p>
-                        <p className="text-sm text-gray-500">{application.contact_email}</p>
-                        {application.phone && (
-                          <p className="text-sm text-gray-500">{application.phone}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="text-sm">
-                        <p><span className="font-medium">{application.monthly_bookings_estimate}</span> bookings/month</p>
-                        {application.trial_requested && (
-                          <p className="text-blue-600">Trial requested</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge variant="outline">
-                        {application.plan_preference.charAt(0).toUpperCase() + application.plan_preference.slice(1)}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge variant={getStatusBadgeVariant(application.status)}>
-                        {formatStatus(application.status)}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {new Date(application.submitted_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        <button 
-                          onClick={() => setSelectedApplication(application)}
-                          className="p-1 text-gray-400 hover:text-blue-600"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        {application.status === 'pending' && (
-                          <>
-                            <button 
-                              onClick={() => handleStatusChange(application.id, 'approved')}
-                              className="p-1 text-gray-400 hover:text-green-600"
-                              title="Approve"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleStatusChange(application.id, 'rejected')}
-                              className="p-1 text-gray-400 hover:text-red-600"
-                              title="Reject"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                        {application.status === 'approved' && (
-                          <button 
-                            onClick={() => handleStatusChange(application.id, 'setup_in_progress')}
-                            className="p-1 text-gray-400 hover:text-blue-600"
-                            title="Start Setup"
-                          >
-                            <Play className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredApplications.length === 0 && (
-            <div className="text-center py-8">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No applications found</h3>
-              <p className="text-gray-500">Try adjusting your filter criteria</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Application Detail Modal */}
-      {selectedApplication && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">{selectedApplication.company_name}</h2>
-              <button 
-                onClick={() => setSelectedApplication(null)}
-                className="text-gray-400 hover:text-gray-600"
+        {/* Filters */}
+        <Card className="bg-white shadow-sm border-gray-200">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <label className="text-sm font-medium text-gray-700">Filter by status:</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               >
-                ✕
-              </button>
+                <option value="all">All Applications</option>
+                <option value="pending">Pending</option>
+                <option value="reviewing">Reviewing</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="setup_in_progress">Setup In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+              <div className="text-sm text-gray-500">
+                {filteredApplications.length} applications
+              </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <h3 className="font-medium text-gray-900 mb-2">Contact Information</h3>
-                <p><strong>Name:</strong> {selectedApplication.contact_name}</p>
-                <p><strong>Email:</strong> {selectedApplication.contact_email}</p>
-                {selectedApplication.phone && <p><strong>Phone:</strong> {selectedApplication.phone}</p>}
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900 mb-2">Business Details</h3>
-                <p><strong>Type:</strong> {formatBusinessType(selectedApplication.business_type)}</p>
-                <p><strong>Size:</strong> {formatCompanySize(selectedApplication.company_size)}</p>
-                <p><strong>Monthly Bookings:</strong> {selectedApplication.monthly_bookings_estimate}</p>
-              </div>
+          </CardContent>
+        </Card>
+
+        {/* Applications Table */}
+        <Card className="bg-white shadow-sm border-gray-200">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-gray-900">Onboarding Applications</CardTitle>
+            <CardDescription className="text-gray-600">
+              Manage tenant registration applications and setup process
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="text-left py-4 px-6 font-medium text-gray-700 text-sm">Company</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-700 text-sm">Contact</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-700 text-sm">Business Details</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-700 text-sm">Plan</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-700 text-sm">Status</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-700 text-sm">Submitted</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-700 text-sm">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredApplications.map((application) => (
+                    <tr key={application.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Building className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{application.company_name}</p>
+                            <p className="text-sm text-gray-500">
+                              {formatBusinessType(application.business_type)} • {formatCompanySize(application.company_size)}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{application.contact_name}</p>
+                          <p className="text-sm text-gray-500">{application.contact_email}</p>
+                          {application.phone && (
+                            <p className="text-sm text-gray-500">{application.phone}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="text-sm">
+                          <p><span className="font-medium text-gray-900">{application.monthly_bookings_estimate}</span> <span className="text-gray-500">bookings/month</span></p>
+                          {application.trial_requested && (
+                            <p className="text-blue-600 font-medium">Trial requested</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <Badge variant="outline" className="font-medium">
+                          {application.plan_preference.charAt(0).toUpperCase() + application.plan_preference.slice(1)}
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-6">
+                        <Badge variant={getStatusBadgeVariant(application.status)}>
+                          {formatStatus(application.status)}
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            {new Date(application.submitted_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={() => setSelectedApplication(application)}
+                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          {application.status === 'pending' && (
+                            <>
+                              <button 
+                                onClick={() => handleStatusChange(application.id, 'approved')}
+                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Approve"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleStatusChange(application.id, 'rejected')}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Reject"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                          {application.status === 'approved' && (
+                            <button 
+                              onClick={() => handleStatusChange(application.id, 'setup_in_progress')}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Start Setup"
+                            >
+                              <Play className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            <div className="mb-6">
-              <h3 className="font-medium text-gray-900 mb-2">Application Status</h3>
-              <div className="flex items-center space-x-4">
-                <Badge variant={getStatusBadgeVariant(selectedApplication.status)}>
-                  {formatStatus(selectedApplication.status)}
-                </Badge>
-                <span className="text-sm text-gray-500">
-                  Submitted: {new Date(selectedApplication.submitted_at).toLocaleDateString()}
-                </span>
-                {selectedApplication.reviewed_at && (
-                  <span className="text-sm text-gray-500">
-                    Reviewed: {new Date(selectedApplication.reviewed_at).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {selectedApplication.notes && (
-              <div className="mb-6">
-                <h3 className="font-medium text-gray-900 mb-2">Notes</h3>
-                <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedApplication.notes}</p>
+            {filteredApplications.length === 0 && (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No applications found</h3>
+                <p className="text-gray-500">Try adjusting your filter criteria</p>
               </div>
             )}
-
-            <div className="flex justify-end space-x-3">
-              {selectedApplication.status === 'pending' && (
-                <>
-                  <button 
-                    onClick={() => {
-                      handleStatusChange(selectedApplication.id, 'rejected');
-                      setSelectedApplication(null);
-                    }}
-                    className="px-4 py-2 border border-red-300 text-red-700 rounded hover:bg-red-50"
-                  >
-                    Reject
-                  </button>
-                  <button 
-                    onClick={() => {
-                      handleStatusChange(selectedApplication.id, 'approved');
-                      setSelectedApplication(null);
-                    }}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    Approve
-                  </button>
-                </>
-              )}
-              {selectedApplication.status === 'approved' && (
-                <button 
-                  onClick={() => {
-                    handleStatusChange(selectedApplication.id, 'setup_in_progress');
-                    setSelectedApplication(null);
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Start Setup
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <Card>
-          <CardContent className="text-center py-12">
-            <div className="text-red-600 font-medium">Error loading onboarding data</div>
-            <div className="text-gray-500 text-sm mt-1">{error}</div>
           </CardContent>
         </Card>
-      )}
+
+        {/* Application Detail Modal */}
+        {selectedApplication && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold text-gray-900">{selectedApplication.company_name}</h2>
+                  <button 
+                    onClick={() => setSelectedApplication(null)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Contact Information</h3>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="font-medium text-gray-700">Name:</span> {selectedApplication.contact_name}</p>
+                      <p><span className="font-medium text-gray-700">Email:</span> {selectedApplication.contact_email}</p>
+                      {selectedApplication.phone && <p><span className="font-medium text-gray-700">Phone:</span> {selectedApplication.phone}</p>}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Business Details</h3>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="font-medium text-gray-700">Type:</span> {formatBusinessType(selectedApplication.business_type)}</p>
+                      <p><span className="font-medium text-gray-700">Size:</span> {formatCompanySize(selectedApplication.company_size)}</p>
+                      <p><span className="font-medium text-gray-700">Monthly Bookings:</span> {selectedApplication.monthly_bookings_estimate}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-900 mb-3">Application Status</h3>
+                  <div className="flex items-center space-x-4">
+                    <Badge variant={getStatusBadgeVariant(selectedApplication.status)}>
+                      {formatStatus(selectedApplication.status)}
+                    </Badge>
+                    <span className="text-sm text-gray-500">
+                      Submitted: {new Date(selectedApplication.submitted_at).toLocaleDateString()}
+                    </span>
+                    {selectedApplication.reviewed_at && (
+                      <span className="text-sm text-gray-500">
+                        Reviewed: {new Date(selectedApplication.reviewed_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {selectedApplication.notes && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold text-gray-900 mb-3">Notes</h3>
+                    <p className="text-gray-700 bg-gray-50 p-4 rounded-lg text-sm">{selectedApplication.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-gray-200 bg-gray-50">
+                <div className="flex justify-end space-x-3">
+                  {selectedApplication.status === 'pending' && (
+                    <>
+                      <button 
+                        onClick={() => {
+                          handleStatusChange(selectedApplication.id, 'rejected');
+                          setSelectedApplication(null);
+                        }}
+                        className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors font-medium"
+                      >
+                        Reject
+                      </button>
+                      <button 
+                        onClick={() => {
+                          handleStatusChange(selectedApplication.id, 'approved');
+                          setSelectedApplication(null);
+                        }}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                      >
+                        Approve
+                      </button>
+                    </>
+                  )}
+                  {selectedApplication.status === 'approved' && (
+                    <button 
+                      onClick={() => {
+                        handleStatusChange(selectedApplication.id, 'setup_in_progress');
+                        setSelectedApplication(null);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Start Setup
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardContent className="text-center py-12">
+              <div className="w-16 h-16 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <div className="text-red-600 font-medium mb-2">Error loading onboarding data</div>
+              <div className="text-gray-500 text-sm">{error}</div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 } 

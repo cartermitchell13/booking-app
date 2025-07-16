@@ -22,6 +22,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useState } from 'react';
+import InviteAdminModal from '@/components/admin/InviteAdminModal';
 
 // Mock team member data
 const mockTeamMembers = [
@@ -141,6 +142,7 @@ export default function TeamManagement() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // Filter team members
   const filteredMembers = teamMembers.filter(member => {
@@ -188,9 +190,12 @@ export default function TeamManagement() {
             <Settings className="w-4 h-4 mr-2" />
             Permissions
           </button>
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button 
+            onClick={() => setIsInviteModalOpen(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <UserPlus className="w-4 h-4 mr-2" />
-            Add Team Member
+            Invite Team Member
           </button>
         </div>
       </div>
@@ -418,12 +423,25 @@ export default function TeamManagement() {
               ? 'Try adjusting your search or filter criteria'
               : 'Add your first team member to start building your team'}
           </p>
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mx-auto">
+          <button 
+            onClick={() => setIsInviteModalOpen(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mx-auto"
+          >
             <UserPlus className="w-4 h-4 mr-2" />
-            Add Your First Team Member
+            Invite Your First Team Member
           </button>
         </Card>
       )}
+
+      {/* Invite Admin Modal */}
+      <InviteAdminModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        onSuccess={() => {
+          // Could add team member refresh logic here
+          console.log('Invitation sent successfully');
+        }}
+      />
     </div>
   );
 } 

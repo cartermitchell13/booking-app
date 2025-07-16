@@ -136,6 +136,52 @@ CREATE POLICY "Bookings are manageable by tenant admins and customers" ON bookin
     user_id = auth.uid()
   );
 
+-- Policy to allow anonymous users to create bookings (for guest bookings)
+CREATE POLICY "Allow anonymous booking creation" ON bookings
+    FOR INSERT
+    TO anon
+    WITH CHECK (true);
+
+-- Policy to allow users to view their own bookings
+CREATE POLICY "Users can view own bookings" ON bookings
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
+
+-- Policy to allow tenant admins to view all bookings for their tenant
+CREATE POLICY "Tenant admins can view tenant bookings" ON bookings
+    FOR SELECT
+    TO authenticated
+    USING (
+        tenant_id IN (
+            SELECT id FROM tenants 
+            WHERE owner_id = auth.uid()
+        )
+    );
+
+-- Policy to allow tenant admins to update bookings for their tenant
+CREATE POLICY "Tenant admins can update tenant bookings" ON bookings
+    FOR UPDATE
+    TO authenticated
+    USING (
+        tenant_id IN (
+            SELECT id FROM tenants 
+            WHERE owner_id = auth.uid()
+        )
+    );
+
+-- Policy to allow system admins to view all bookings
+CREATE POLICY "System admins can view all bookings" ON bookings
+    FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM profiles 
+            WHERE id = auth.uid() 
+            AND role = 'admin'
+        )
+    );
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug);
 CREATE INDEX IF NOT EXISTS idx_tenants_domain ON tenants(domain);

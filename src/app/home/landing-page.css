@@ -1,0 +1,110 @@
+/* Import Geist Font */
+@import url('https://fonts.googleapis.com/css2?family=Geist+Sans:wght@300;400;500;600;700&display=swap');
+
+/* Define all design tokens as CSS variables under a scoping class */
+.landing-page-theme {
+  --primary: #151e3f;         /* space-cadet */
+  --primaryDark: #030027;     /* oxford-blue */
+  --primaryHover: #030027;   /* Use oxford-blue for hover */
+  --background: #f2f3d9;      /* beige */
+  --surface: #ffffff;
+  --accent: #dc9e82;          /* buff */
+  --highlight: #c16e70;       /* old-rose */
+  --text: #151e3f;
+  --textMuted: #5a6280;
+  --border: #dcdcdc;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --font-family: 'Geist Sans', sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Apply base styles with full-page gradient */
+.landing-page-theme {
+  background: linear-gradient(135deg, 
+    var(--surface) 0%, 
+    var(--background) 20%, 
+    rgba(220, 158, 130, 0.1) 40%, 
+    var(--background) 60%, 
+    rgba(193, 110, 112, 0.1) 80%, 
+    var(--background) 100%
+  );
+  min-height: 100vh;
+  color: var(--text);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.section-gradient {
+  background: transparent; /* Remove individual section gradients */
+}
+
+/* Diagonal section break */
+.diagonal-section {
+  position: relative;
+  background: var(--primary);
+  color: white;
+  transform: skewY(-1deg);
+  padding: 120px 0;
+  margin: 60px 0 -60px 0;
+}
+
+.diagonal-section .section-content {
+  transform: skewY(1deg);
+  max-width: 7xl;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.diagonal-section h1,
+.diagonal-section h2,
+.diagonal-section h3,
+.diagonal-section h4,
+.diagonal-section h5,
+.diagonal-section h6 {
+  color: white !important;
+}
+
+/* Base element styling within the theme */
+.landing-page-theme h1,
+.landing-page-theme h2,
+.landing-page-theme h3,
+.landing-page-theme h4,
+.landing-page-theme h5,
+.landing-page-theme h6 {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.landing-page-theme p {
+  color: var(--textMuted);
+}
+
+.landing-page-theme a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.landing-page-theme a:hover {
+  color: var(--primaryHover);
+}
+
+/* Ensure buttons with dark backgrounds have light text */
+.landing-page-theme a.text-white,
+.landing-page-theme a[style*="background-color"],
+.landing-page-theme button.text-white {
+  color: var(--surface) !important; /* --surface is #ffffff */
+}
+
+.landing-page-theme main {
+  width: 100%;
+} 

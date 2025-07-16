@@ -1,431 +1,136 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 import { useTenant } from '@/lib/tenant-context';
-import { Eye, EyeOff, Mail, Lock, User, Phone, AlertCircle, CheckCircle, UserPlus } from 'lucide-react';
+import { Building2, User, ArrowRight, Briefcase } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { tenant } = useTenant();
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    phone: ''
-  });
 
-  // Get the intended destination for redirect after registration
-  const redirectTo = searchParams.get('redirect') || '/account';
-
-  const validateForm = () => {
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      return false;
+  // If we're on a tenant domain, redirect directly to customer registration
+  useEffect(() => {
+    if (tenant?.id) {
+      router.replace('/register/customer');
     }
-    
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
-      return false;
-    }
+  }, [tenant?.id, router]);
 
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      setError('First and last name are required.');
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    if (!validateForm()) {
-      setIsLoading(false);
-      return;
-    }
-
-    if (!supabase) {
-      setError('Authentication service is not configured. Please contact support.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!tenant?.id) {
-      setError('Tenant information not available. Please refresh the page.');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      // Create auth user with Supabase (skip email confirmation for testing)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: undefined, // Disable email confirmation
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            phone: formData.phone,
-            tenant_id: tenant.id,
-            email_confirmed: true // Mark as confirmed for testing
-          }
-        }
-      });
-
-      if (authError) {
-        throw authError;
-      }
-
-      // Create user record in our users table
-      if (authData.user) {
-        const { error: userError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            tenant_id: tenant.id,
-            email: formData.email,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            phone: formData.phone || null,
-            role: 'customer',
-            email_verified: false
-          });
-
-        if (userError) {
-          console.error('User creation error:', userError);
-          // Don't throw here as the auth user was created successfully
-        }
-
-        // Show success message and redirect immediately (no email confirmation needed)
-        setSuccess('Account created successfully! Redirecting...');
-
-        // Redirect after a short delay
-        setTimeout(() => {
-            router.push(`/login?redirect=${encodeURIComponent(redirectTo)}`);
-        }, 1500);
-      }
-    } catch (err) {
-      console.error('Registration error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create account. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-    // Clear errors when user starts typing
-    if (error) setError(null);
-    if (success) setSuccess(null);
-  };
-
-  const primaryColor = tenant?.branding?.primary_color || '#10B981';
+  // If we have a tenant (redirecting), show loading
+  if (tenant?.id) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-2xl">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          {tenant?.branding?.logo_url ? (
-            <img
-              className="h-16 w-auto"
-              src={tenant.branding.logo_url}
-              alt={tenant.name}
-            />
-          ) : (
-            <div className="text-3xl font-bold" style={{ color: primaryColor }}>
-              {tenant?.name || 'BookingApp'}
-            </div>
-          )}
-        </div>
-        
         <div className="text-center">
           <h2 className="text-4xl font-bold text-gray-900 mb-2">
-            Create your account
+            Join our platform
           </h2>
           <p className="text-lg text-gray-600">
-            Join us today and start booking amazing experiences
+            Choose how you'd like to get started
           </p>
         </div>
       </div>
 
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-2xl">
-        <div className="bg-white py-10 px-8 shadow-xl rounded-2xl border border-gray-100">
-          <form className="space-y-8" onSubmit={handleSubmit}>
-            {error && (
-              <div className="rounded-xl bg-red-50 p-4 border border-red-200">
-                <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">
-                      {error}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {success && (
-              <div className="rounded-xl bg-green-50 p-4 border border-green-200">
-                <div className="flex">
-                  <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-green-800">
-                      {success}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-6">
-              {/* Name Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-semibold text-gray-800 mb-2">
-                    First name
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      id="firstName"
-                      name="firstName"
-                      type="text"
-                      required
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      className="pl-12 block w-full h-14 border-2 border-gray-200 rounded-xl shadow-sm text-lg placeholder-gray-400 focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                      style={{ 
-                        '--tw-ring-color': primaryColor
-                      } as any}
-                      placeholder="Enter your first name"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-semibold text-gray-800 mb-2">
-                    Last name
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      id="lastName"
-                      name="lastName"
-                      type="text"
-                      required
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      className="pl-12 block w-full h-14 border-2 border-gray-200 rounded-xl shadow-sm text-lg placeholder-gray-400 focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                      style={{ 
-                        '--tw-ring-color': primaryColor
-                      } as any}
-                      placeholder="Enter your last name"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Email Field */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-800 mb-2">
-                  Email address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="pl-12 block w-full h-14 border-2 border-gray-200 rounded-xl shadow-sm text-lg placeholder-gray-400 focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                    style={{ 
-                      '--tw-ring-color': primaryColor
-                    } as any}
-                    placeholder="Enter your email address"
-                  />
-                </div>
-              </div>
-
-              {/* Phone Field */}
-              <div>
-                <label htmlFor="phone" className="block text-sm font-semibold text-gray-800 mb-2">
-                  Phone number <span className="text-gray-500 font-normal">(optional)</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="pl-12 block w-full h-14 border-2 border-gray-200 rounded-xl shadow-sm text-lg placeholder-gray-400 focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                    style={{ 
-                      '--tw-ring-color': primaryColor
-                    } as any}
-                    placeholder="Enter your phone number"
-                  />
-                </div>
-              </div>
-
-              {/* Password Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="password" className="block text-sm font-semibold text-gray-800 mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      id="password"
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      required
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className="pl-12 pr-14 block w-full h-14 border-2 border-gray-200 rounded-xl shadow-sm text-lg placeholder-gray-400 focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                      style={{ 
-                        '--tw-ring-color': primaryColor
-                      } as any}
-                      placeholder="Create a password"
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                      ) : (
-                        <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-500">Must be at least 6 characters long</p>
-                </div>
-
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-800 mb-2">
-                    Confirm password
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      required
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      className="pl-12 pr-14 block w-full h-14 border-2 border-gray-200 rounded-xl shadow-sm text-lg placeholder-gray-400 focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                      style={{ 
-                        '--tw-ring-color': primaryColor
-                      } as any}
-                      placeholder="Confirm your password"
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                      ) : (
-                        <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="group relative w-full flex justify-center items-center h-14 px-6 border border-transparent rounded-xl shadow-lg text-lg font-semibold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] hover:shadow-xl"
-                style={{ 
-                  backgroundColor: primaryColor,
-                  '--tw-ring-color': primaryColor
-                } as any}
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                    Creating account...
-                  </>
-                ) : (
-                  <>
-                    Create account
-                    <UserPlus className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                  </>
-                )}
-              </button>
-            </div>
-
+      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-4xl">
+        <div className="grid md:grid-cols-2 gap-8 px-4">
+          {/* Business Owner Registration */}
+          <div className="bg-white py-10 px-8 shadow-xl rounded-2xl border border-gray-100 hover:shadow-2xl transition-shadow">
             <div className="text-center">
-              <div className="text-sm text-gray-600 leading-relaxed">
-                By creating an account, you agree to our{' '}
-                <Link href="/terms" className="underline hover:text-gray-900 transition-colors">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link href="/privacy" className="underline hover:text-gray-900 transition-colors">
-                  Privacy Policy
+              <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+                <Building2 className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                I'm a Business Owner
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Register your tour company and start offering amazing experiences to customers
+              </p>
+              
+              <div className="space-y-3 text-left text-sm text-gray-600 mb-8">
+                <div className="flex items-center">
+                  <Briefcase className="h-4 w-4 mr-2 text-blue-600" />
+                  <span>Create and manage your tour offerings</span>
+                </div>
+                <div className="flex items-center">
+                  <User className="h-4 w-4 mr-2 text-blue-600" />
+                  <span>Accept bookings from customers</span>
+                </div>
+                <div className="flex items-center">
+                  <Building2 className="h-4 w-4 mr-2 text-blue-600" />
+                  <span>Custom branding and domain</span>
+                </div>
+              </div>
+
+              <Link
+                href="/register/operator"
+                className="w-full inline-flex justify-center items-center py-3 px-6 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              >
+                Start your business
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Customer Registration */}
+          <div className="bg-white py-10 px-8 shadow-xl rounded-2xl border border-gray-100 hover:shadow-2xl transition-shadow">
+            <div className="text-center">
+              <div className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                <User className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                I'm a Customer
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Create an account to book tours and manage your travel experiences
+              </p>
+              
+              <div className="space-y-3 text-left text-sm text-gray-600 mb-8">
+                <div className="flex items-center">
+                  <User className="h-4 w-4 mr-2 text-green-600" />
+                  <span>Book amazing tours and experiences</span>
+                </div>
+                <div className="flex items-center">
+                  <Building2 className="h-4 w-4 mr-2 text-green-600" />
+                  <span>Manage your bookings and history</span>
+                </div>
+                <div className="flex items-center">
+                  <Briefcase className="h-4 w-4 mr-2 text-green-600" />
+                  <span>Personalized recommendations</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500 mb-4">
+                  To register as a customer, visit a tour operator's website and create an account there.
+                </p>
+                <Link
+                  href="/search"
+                  className="w-full inline-flex justify-center items-center py-3 px-6 border border-transparent text-base font-medium rounded-xl text-white bg-green-600 hover:bg-green-700 transition-colors"
+                >
+                  Browse experiences
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
-                .
               </div>
             </div>
-          </form>
-
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link
-                href={`/login${redirectTo !== '/account' ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`}
-                className="font-semibold hover:underline transition-colors"
-                style={{ color: primaryColor }}
-              >
-                Sign in here
-              </Link>
-            </p>
           </div>
+        </div>
+
+        {/* Back to login */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link href="/login" className="font-medium text-blue-600 hover:underline">
+              Sign in
+            </Link>
+          </p>
         </div>
       </div>
     </div>

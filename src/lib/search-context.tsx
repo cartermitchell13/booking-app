@@ -2,23 +2,14 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { SearchContextType, SearchParams, PassengerCounts } from '@/types'
+import { SearchContextType, SearchParams } from '@/types'
 
 const SearchContext = createContext<SearchContextType | undefined>(undefined)
 
-const defaultPassengers: PassengerCounts = {
-  adults: 1,
-  students: 0,
-  children: 0,
-}
-
 const defaultSearchParams: SearchParams = {
-  originId: undefined,
   destinationId: undefined,
-  outboundDate: '',
-  inboundDate: undefined,
-  passengers: defaultPassengers,
-  tripType: 'one-way',
+  dateFrom: undefined,
+  dateTo: undefined,
 }
 
 export function SearchProvider({ children }: { children: React.ReactNode }) {
@@ -32,16 +23,9 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     const urlParams = new URLSearchParams(searchParams)
     
     const newState: SearchParams = {
-      originId: urlParams.get('from') || undefined,
-      destinationId: urlParams.get('to') || undefined,
-      outboundDate: urlParams.get('outbound') || '',
-      inboundDate: urlParams.get('inbound') || undefined,
-      passengers: {
-        adults: parseInt(urlParams.get('adults') || '1'),
-        students: parseInt(urlParams.get('students') || '0'),
-        children: parseInt(urlParams.get('children') || '0'),
-      },
-      tripType: (urlParams.get('type') as 'one-way' | 'round-trip') || 'one-way',
+      destinationId: urlParams.get('destination') || undefined,
+      dateFrom: urlParams.get('date_from') || undefined,
+      dateTo: urlParams.get('date_to') || undefined,
     }
 
     setSearchState(newState)
@@ -51,14 +35,9 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const updateURL = (newState: SearchParams) => {
     const params = new URLSearchParams()
     
-    if (newState.originId) params.set('from', newState.originId)
-    if (newState.destinationId) params.set('to', newState.destinationId)
-    if (newState.outboundDate) params.set('outbound', newState.outboundDate)
-    if (newState.inboundDate) params.set('inbound', newState.inboundDate)
-    if (newState.passengers.adults > 0) params.set('adults', newState.passengers.adults.toString())
-    if (newState.passengers.students > 0) params.set('students', newState.passengers.students.toString())
-    if (newState.passengers.children > 0) params.set('children', newState.passengers.children.toString())
-    params.set('type', newState.tripType)
+    if (newState.destinationId) params.set('destination', newState.destinationId)
+    if (newState.dateFrom) params.set('date_from', newState.dateFrom)
+    if (newState.dateTo) params.set('date_to', newState.dateTo)
 
     const newUrl = `${pathname}?${params.toString()}`
     router.push(newUrl, { scroll: false })
@@ -66,37 +45,23 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
 
   const contextValue: SearchContextType = {
     ...searchState,
-    setOriginId: (id: string) => {
-      const newState = { ...searchState, originId: id }
-      setSearchState(newState)
-      updateURL(newState)
-    },
     setDestinationId: (id: string) => {
       const newState = { ...searchState, destinationId: id }
       setSearchState(newState)
       updateURL(newState)
     },
-    setOutboundDate: (date: string) => {
-      const newState = { ...searchState, outboundDate: date }
+    setDateFrom: (date: string | undefined) => {
+      const newState = { ...searchState, dateFrom: date }
       setSearchState(newState)
       updateURL(newState)
     },
-    setInboundDate: (date: string | undefined) => {
-      const newState = { ...searchState, inboundDate: date }
+    setDateTo: (date: string | undefined) => {
+      const newState = { ...searchState, dateTo: date }
       setSearchState(newState)
       updateURL(newState)
     },
-    setPassengers: (passengers: PassengerCounts) => {
-      const newState = { ...searchState, passengers }
-      setSearchState(newState)
-      updateURL(newState)
-    },
-    setTripType: (type: 'one-way' | 'round-trip') => {
-      const newState = { ...searchState, tripType: type }
-      // Clear inbound date if switching to one-way
-      if (type === 'one-way') {
-        newState.inboundDate = undefined
-      }
+    setDateRange: (dateFrom: string | undefined, dateTo: string | undefined) => {
+      const newState = { ...searchState, dateFrom, dateTo }
       setSearchState(newState)
       updateURL(newState)
     },

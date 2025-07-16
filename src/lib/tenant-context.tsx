@@ -29,117 +29,208 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
   const [isLoading, setIsLoading] = useState(!initialTenant);
   const [error, setError] = useState<string>();
 
-  // Detect tenant from current domain/subdomain
-  const detectTenant = async (): Promise<Tenant | null> => {
-    try {
-      const hostname = window.location.hostname;
-      
-      // For development or admin routes, try to get tenant data, but fallback gracefully
-      if (hostname === 'localhost' || hostname.includes('localhost')) {
-        try {
-          // First, check if tenants table exists by trying a simple query
-          const { data, error } = await supabase
-            .from('tenants')
-            .select('*')
-            .eq('slug', 'parkbus')
-            .single();
-        
-          if (error) {
-            // If error is about missing table or RLS, return mock data
-            if (error.code === 'PGRST116' || error.message.includes('relation') || error.message.includes('RLS')) {
-              console.warn('Tenants table not found or RLS not configured, using mock data');
-              return {
-                id: 'mock-parkbus-id',
-                slug: 'parkbus',
-                name: 'ParkBus',
-                branding: {
-                  primary_color: '#10B981',
-                  secondary_color: '#059669',
-                  logo_url: '/images/black-pb-logo.png',
-                  font_family: 'Inter'
-                },
-                settings: {
-                  timezone: 'America/Vancouver',
-                  currency: 'CAD',
-                  email_from: 'bookings@parkbus.ca'
-                },
-                subscription_plan: 'enterprise' as const,
-                subscription_status: 'active' as const,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              };
-            }
-            throw error;
-          }
-          return data;
-        } catch (dbError) {
-          console.warn('Database query failed, using mock tenant:', dbError);
-          return {
-            id: 'mock-parkbus-id',
-            slug: 'parkbus',
-            name: 'ParkBus',
-            branding: {
-              primary_color: '#10B981',
-              secondary_color: '#059669',
-              logo_url: '/images/black-pb-logo.png',
-              font_family: 'Inter'
-            },
-            settings: {
-              timezone: 'America/Vancouver',
-              currency: 'CAD',
-              email_from: 'bookings@parkbus.ca'
-            },
-            subscription_plan: 'enterprise' as const,
-            subscription_status: 'active' as const,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-        }
-      }
-
-      // For production, try domain-based detection
-      try {
-        const { data, error } = await supabase
-          .rpc('get_tenant_by_domain', { domain_input: hostname });
-
-        if (error) throw error;
-        return data && data.length > 0 ? data[0] : null;
-      } catch (rpcError) {
-        console.warn('RPC function not found, trying direct query');
-        
-        // Fallback to direct table query
-        const { data, error } = await supabase
-          .from('tenants')
-          .select('*')
-          .or(`domain.eq.${hostname},slug.eq.${hostname.split('.')[0]}`)
-          .single();
-
-        if (error) throw error;
-        return data;
-      }
-    } catch (err) {
-      console.error('Error detecting tenant:', err);
-      // Return mock tenant as last resort
+  // Get mock tenant data for development
+  const getMockTenantData = (slug: string): Tenant => {
+    console.log(`[TenantContext] Creating mock tenant data for slug: ${slug}`);
+    
+    // Return mock data based on slug
+    if (slug === 'parkbus') {
       return {
-        id: 'mock-parkbus-id',
+        id: '20ee5f83-1019-46c7-9382-05a6f1ded9bf', // Real tenant ID from database
         slug: 'parkbus',
         name: 'ParkBus',
+        domain: undefined,
+        domain_verified: false,
         branding: {
-          primary_color: '#10B981',
-          secondary_color: '#059669',
+          primary_color: '#21452e',
+          accent_color: '#637752',
+          background_color: '#f9f7f1',
+          foreground_color: '#faf6e1',
+          secondary_color: '#637752',
           logo_url: '/images/black-pb-logo.png',
-          font_family: 'Inter'
+          font_family: 'Custom Font',
+          custom_font_family: 'CultivatedMindTrueNorth',
+          custom_font_name: 'Cultivated Mind - True North.otf',
+          custom_font_url: 'https://zsdkqmlhnffoidwyygce.supabase.co/storage/v1/object/public/tenant-assets/fonts/20ee5f83-1019-46c7-9382-05a6f1ded9bf/1751218694875-CultivatedMind-TrueNorth.otf'
         },
         settings: {
           timezone: 'America/Vancouver',
           currency: 'CAD',
           email_from: 'bookings@parkbus.ca'
         },
-        subscription_plan: 'enterprise' as const,
-        subscription_status: 'active' as const,
+        subscription_plan: 'enterprise',
+        subscription_status: 'active',
+        trial_ends_at: undefined,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+    }
+    
+    // Generic mock tenant for unknown slugs
+    return {
+      id: `mock-${slug}-id`,
+      slug: slug,
+      name: slug.charAt(0).toUpperCase() + slug.slice(1),
+      domain: undefined,
+      domain_verified: false,
+      branding: {
+        primary_color: '#3B82F6',
+        accent_color: '#1D4ED8',
+        background_color: '#FFFFFF',
+        foreground_color: '#111827',
+        secondary_color: '#1D4ED8',
+        logo_url: undefined,
+        font_family: 'Inter'
+      },
+      settings: {
+        timezone: 'America/New_York',
+        currency: 'USD',
+        email_from: `bookings@${slug}.com`
+      },
+      subscription_plan: 'starter',
+      subscription_status: 'trial',
+      trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  };
+
+  // Detect tenant from current domain/subdomain with middleware header support
+  const detectTenant = async (): Promise<Tenant | null> => {
+    try {
+      // Get hostname without port number
+      const hostname = window.location.hostname;
+      
+      // Parse subdomain from hostname  
+      const parts = hostname.split('.');
+      const subdomain = parts.length > 1 ? parts[0] : null;
+      
+      console.log(`[TenantContext] Detecting tenant for hostname: ${hostname}, parts: ${JSON.stringify(parts)}, subdomain: ${subdomain}`);
+      
+      // For development with .localhost subdomains
+      if (hostname.includes('localhost')) {
+        let tenantSlug = null; // No default fallback - use null for generic branding
+        
+        // Check for subdomain (e.g., parkbus.localhost:3000)
+        if (subdomain && subdomain !== 'www' && subdomain !== 'admin' && subdomain !== 'localhost') {
+          tenantSlug = subdomain;
+          console.log(`[TenantContext] Using subdomain: ${tenantSlug}`);
+        } else {
+          // Check for tenant parameter in URL for backward compatibility
+          const urlParams = new URLSearchParams(window.location.search);
+          const tenantParam = urlParams.get('tenant');
+          if (tenantParam) {
+            tenantSlug = tenantParam;
+            console.log(`[TenantContext] Using URL parameter: ${tenantSlug}`);
+          }
+        }
+        
+        // If no tenant slug found, return null for generic branding
+        if (!tenantSlug) {
+          console.log(`[TenantContext] No tenant slug found, returning null for generic branding`);
+          return null;
+        }
+        
+        try {
+          console.log(`[TenantContext] Attempting database query for tenantSlug: ${tenantSlug}`);
+          
+          // Add a small delay to ensure connection is ready (debug page works perfectly)
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Create a timeout promise (increased to 5 seconds to match working debug)
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Database query timeout')), 5000);
+          });
+          
+          // Create the database query promise
+          const queryPromise = supabase
+            .from('tenants')
+            .select('*')
+            .eq('slug', tenantSlug)
+            .single();
+          
+          // Race the query against the timeout
+          const result = await Promise.race([queryPromise, timeoutPromise]);
+          const { data, error } = result as any;
+          
+          console.log(`[TenantContext] Database query completed:`, { data, error });
+        
+          if (error) {
+            console.log(`[TenantContext] Database error, using mock data:`, error.message);
+            return getMockTenantData(tenantSlug);
+          }
+          
+          if (data) {
+            console.log(`[TenantContext] Found tenant in database: ${data.name}`);
+            return data;
+          } else {
+            console.log(`[TenantContext] No tenant found in database, using mock data for: ${tenantSlug}`);
+            return getMockTenantData(tenantSlug);
+          }
+        } catch (dbError) {
+          console.warn(`[TenantContext] Database query failed, using mock tenant for: ${tenantSlug}`, dbError);
+          return getMockTenantData(tenantSlug);
+        }
+      }
+
+      // For production with custom domains
+      try {
+        // Check if this is a custom domain (like booking.parkbus.com)
+        // Enhanced logic: Look for tenants where the hostname matches either:
+        // 1. Their exact custom domain (booking.parkbus.com)  
+        // 2. Or contains their root domain (parkbus.com) as custom subdomain
+        const { data: customDomainData, error: customError } = await supabase
+          .from('tenants')
+          .select('*')
+          .or(`domain.eq.${hostname},domain.eq.${hostname.split('.').slice(1).join('.')}`)
+          .eq('domain_verified', true)
+          .single();
+
+        if (!customError && customDomainData) {
+          console.log('[TenantContext] Found tenant via custom domain:', customDomainData.name);
+          return customDomainData;
+        }
+
+        // Fallback to platform subdomain detection (like parkbus.yourplatform.com)
+        if (subdomain && subdomain !== 'www' && subdomain !== 'admin') {
+          const { data: subdomainData, error: subdomainError } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('slug', subdomain)
+            .single();
+
+          if (!subdomainError && subdomainData) {
+            console.log('[TenantContext] Found tenant via platform subdomain:', subdomainData.name);
+            return subdomainData;
+          }
+        }
+
+        // Try the RPC function as last resort
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_tenant_by_domain', { domain_input: hostname });
+
+        if (!rpcError && rpcData && rpcData.length > 0) {
+          console.log('[TenantContext] Found tenant via RPC function:', rpcData[0].name);
+          return rpcData[0];
+        }
+
+        console.warn(`[TenantContext] No tenant found for hostname: ${hostname}`);
+        return null;
+      } catch (err) {
+        console.warn('[TenantContext] Error in tenant detection:', err);
+        return null;
+      }
+    } catch (err) {
+      console.error('[TenantContext] Error detecting tenant:', err);
+      // Return mock tenant as last resort - check for subdomain or default to parkbus
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      if (hostname.includes('localhost')) {
+        const parts = hostname.split('.');
+        const subdomain = parts.length > 1 ? parts[0] : null;
+        const tenantSlug = (subdomain && subdomain !== 'www' && subdomain !== 'admin' && subdomain !== 'localhost') ? subdomain : 'parkbus';
+        return getMockTenantData(tenantSlug);
+      }
+      return getMockTenantData('parkbus');
     }
   };
 
@@ -151,6 +242,15 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
         setError(undefined);
         
         try {
+          // Ensure we're fully client-side and DOM is ready
+          if (typeof window === 'undefined' || typeof document === 'undefined') {
+            console.log('[TenantContext] Not ready - window or document undefined');
+            return;
+          }
+          
+          // Small delay to ensure everything is initialized
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           const detectedTenant = await detectTenant();
           if (detectedTenant) {
             setTenant(detectedTenant);
@@ -229,28 +329,117 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
 export function useTenantSupabase() {
   const { tenant } = useTenant();
   
-  // Helper method to query trips for current tenant
-  const getTrips = useCallback(async () => {
+  // Helper method to query trips for current tenant with optional search filters
+  const getTrips = useCallback(async (filters?: {
+    origin?: string;
+    destination?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    passengers?: number;
+    searchQuery?: string;
+  }) => {
     try {
-      // For development and customer-facing pages, get all active trips
-      // We'll filter by tenant in the UI layer
-      const { data, error } = await supabase
+      // Build the query with filters
+      let query = supabase
         .from('trips')
         .select('*')
-        .eq('status', 'active')
-        .order('departure_time', { ascending: true });
+        .eq('status', 'active');
+      
+      // Add tenant filter if we have a tenant context
+      if (tenant?.id) {
+        query = query.eq('tenant_id', tenant.id);
+      }
+      
+      // Add search filters
+      if (filters?.origin) {
+        query = query.ilike('departure_location', `%${filters.origin}%`);
+      }
+      
+      if (filters?.destination) {
+        query = query.ilike('destination', `%${filters.destination}%`);
+      }
+      
+      if (filters?.dateFrom) {
+        query = query.gte('departure_time', filters.dateFrom);
+      }
+      
+      if (filters?.dateTo) {
+        query = query.lte('departure_time', filters.dateTo);
+      }
+      
+      if (filters?.passengers) {
+        query = query.gte('available_seats', filters.passengers);
+      }
+      
+      if (filters?.searchQuery) {
+        query = query.or(`title.ilike.%${filters.searchQuery}%,description.ilike.%${filters.searchQuery}%,destination.ilike.%${filters.searchQuery}%`);
+      }
+      
+      // Execute query with ordering
+      const { data, error } = await query.order('departure_time', { ascending: true });
       
       if (error) throw error;
       
-      // If we have a tenant context, filter trips for that tenant
-      // Otherwise return all trips (for multi-tenant browsing scenarios)
-      if (tenant?.id) {
-        return data?.filter(trip => trip.tenant_id === tenant.id) || [];
+      // If no trips found for this tenant, try without tenant filter for development
+      if ((!data || data.length === 0) && tenant?.id) {
+        console.log('No trips found for tenant, trying without tenant filter for development...');
+        
+        // Build query again without tenant filter
+        let fallbackQuery = supabase
+          .from('trips')
+          .select('*')
+          .eq('status', 'active');
+        
+        // Add search filters (same as above)
+        if (filters?.origin) {
+          fallbackQuery = fallbackQuery.ilike('departure_location', `%${filters.origin}%`);
+        }
+        
+        if (filters?.destination) {
+          fallbackQuery = fallbackQuery.ilike('destination', `%${filters.destination}%`);
+        }
+        
+        if (filters?.dateFrom) {
+          fallbackQuery = fallbackQuery.gte('departure_time', filters.dateFrom);
+        }
+        
+        if (filters?.dateTo) {
+          fallbackQuery = fallbackQuery.lte('departure_time', filters.dateTo);
+        }
+        
+        if (filters?.passengers) {
+          fallbackQuery = fallbackQuery.gte('available_seats', filters.passengers);
+        }
+        
+        if (filters?.searchQuery) {
+          fallbackQuery = fallbackQuery.or(`title.ilike.%${filters.searchQuery}%,description.ilike.%${filters.searchQuery}%,destination.ilike.%${filters.searchQuery}%`);
+        }
+        
+        const { data: fallbackData, error: fallbackError } = await fallbackQuery.order('departure_time', { ascending: true });
+        
+        if (fallbackError) throw fallbackError;
+        
+        console.log('Fallback query found trips:', fallbackData?.length || 0);
+        return fallbackData || [];
       }
       
       return data || [];
     } catch (error) {
       console.error('Error fetching trips:', error);
+      
+      // Provide more specific error handling
+      if (error instanceof Error) {
+        if (error.message.includes('JWT')) {
+          throw new Error('Authentication failed - please refresh the page');
+        } else if (error.message.includes('policy')) {
+          throw new Error('Access denied - please check your permissions');
+        } else if (error.message.includes('network')) {
+          throw new Error('Network error - please check your connection');
+        } else {
+          throw new Error(`Database error: ${error.message}`);
+        }
+      }
+      
       // If there's an error (like RLS blocking), fall back to mock data
       console.warn('Falling back to mock trip data due to error:', error);
       return [
@@ -378,6 +567,73 @@ export function useTenantSupabase() {
       return null;
     }
   }, [tenant?.id]);
+
+  // Helper method to get unique locations from products
+  const getLocations = useCallback(async () => {
+    try {
+      // Query products table for current tenant
+      let query = supabase
+        .from('products')
+        .select('name, location, product_data')
+        .eq('status', 'active');
+      
+      // Add tenant filter if we have a tenant context
+      if (tenant?.id) {
+        query = query.eq('tenant_id', tenant.id);
+      }
+      
+      const { data: products, error } = await query;
+      
+      if (error) throw error;
+      
+      console.log('Found products:', products?.length || 0);
+      
+      // Extract unique departure locations from products (not destination names)
+      const allLocationNames = new Set<string>();
+      
+      products?.forEach(product => {
+        // Add location from the new location column (primary source for departure locations)
+        if (product.location && product.location.trim()) {
+          allLocationNames.add(product.location.trim());
+        }
+        
+        // Add departure location from product_data (fallback)
+        if (product.product_data?.departure_location && product.product_data.departure_location.trim()) {
+          allLocationNames.add(product.product_data.departure_location.trim());
+        }
+        
+        // Add pickup locations from product_data (specific pickup points)
+        if (product.product_data?.pickup_locations && Array.isArray(product.product_data.pickup_locations)) {
+          product.product_data.pickup_locations.forEach((pickup: any) => {
+            if (pickup.name && pickup.name.trim()) {
+              allLocationNames.add(pickup.name.trim());
+            }
+          });
+        }
+      });
+      
+      // Create location objects with consistent structure and unique IDs
+      const locations = Array.from(allLocationNames).map((locationName, index) => ({
+        id: `location-${index}`,
+        name: locationName,
+        slug: locationName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        city: locationName, // For compatibility with LocationSelect component
+        province: '', // Could be enhanced with province detection
+        latitude: 0, // Could be enhanced with geocoding
+        longitude: 0,
+        created_at: new Date().toISOString()
+      }));
+      
+      // Sort locations alphabetically
+      locations.sort((a, b) => a.name.localeCompare(b.name));
+      
+      console.log('getLocations returning:', locations);
+      return locations;
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      return [];
+    }
+  }, [tenant?.id]);
   
   // Helper method to create booking for current tenant
   const createBooking = useCallback(async (bookingData: any) => {
@@ -461,8 +717,9 @@ export function useTenantSupabase() {
         tenant_id: actualTenantId,
         title: product.name,
         description: product.description || '',
-        destination: product.product_data?.departure_location || 'Destination',
-        departure_location: product.product_data?.departure_location || 'Departure Location',
+        location: product.location || product.product_data?.departure_location || 'Location',
+        destination: product.name, // The product name IS the destination
+        departure_location: product.location || product.product_data?.departure_location || 'Departure Location',
         departure_time: product.product_instances?.[0]?.start_time || new Date().toISOString(),
         return_time: product.product_instances?.[0]?.end_time,
         price_adult: product.base_price,
@@ -606,6 +863,7 @@ export function useTenantSupabase() {
     tenantId: tenant?.id,
     getTrips,
     getTripById,
+    getLocations,
     createBooking,
     getProducts, // New function for real product data
     getProductById, // New function for single product lookup
@@ -681,10 +939,25 @@ export function useTenantBranding() {
     return getContrastingTextColor(backgroundColor || '#FFFFFF');
   };
   
+  // Helper function to get heading font weight class
+  const getHeadingWeight = () => {
+    const weight = branding.heading_font_weight || 
+                   (branding.prefer_light_headings ? 'semibold' : 'bold');
+    switch (weight) {
+      case 'normal': return 'font-normal';
+      case 'medium': return 'font-medium';
+      case 'semibold': return 'font-semibold';
+      case 'bold': return 'font-bold';
+      default: return 'font-bold';
+    }
+  };
+  
   return {
     ...branding,
     // Helper functions
     getOptimalTextColor,
+    getHeadingWeight,
+    headingWeightClass: getHeadingWeight(),
     textOnForeground: getOptimalTextColor(branding.foreground_color),
     textOnBackground: getOptimalTextColor(branding.background_color),
     textOnPrimary: getOptimalTextColor(branding.primary_color),
@@ -713,6 +986,22 @@ const BrandingApplier: React.FC<{ tenant: Tenant | null }> = ({ tenant }) => {
       root.style.setProperty('--tenant-background', branding.background_color || '#FFFFFF');
       root.style.setProperty('--tenant-foreground', branding.foreground_color || '#111827');
       root.style.setProperty('--tenant-secondary', branding.secondary_color || '#059669'); // Legacy support
+      
+      // Apply font weight preference for headings
+      const headingWeight = branding.heading_font_weight || 
+                           (branding.prefer_light_headings ? 'semibold' : 'bold');
+      
+      // Map to CSS font-weight values for direct CSS usage
+      const cssWeightMap: Record<string, string> = {
+        'normal': '400',
+        'medium': '500', 
+        'semibold': '600',
+        'bold': '700'
+      };
+      
+      root.style.setProperty('--tenant-heading-weight', headingWeight);
+      root.style.setProperty('--tenant-heading-weight-value', cssWeightMap[headingWeight] || '700');
+      console.log('🎨 Setting heading font weight:', headingWeight);
       
       // Handle font family - use custom font if available, otherwise use selected font
       let fontFamily = branding.font_family || 'Inter';

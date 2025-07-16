@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useTenantSupabase } from '@/lib/tenant-context';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building, Users, CreditCard, TrendingUp, AlertCircle } from 'lucide-react';
+import { Building, Users, CreditCard, TrendingUp, AlertCircle, Calendar, DollarSign, MapPin } from 'lucide-react';
 
 interface DashboardStats {
   totalTenants: number;
@@ -47,61 +47,14 @@ export default function AdminDashboard() {
 
       try {
         // Load tenants data
-        let tenants = [];
-        try {
-          const { data: tenantsData, error: tenantsError } = await supabase
-            .from('tenants')
-            .select('*')
-            .order('created_at', { ascending: false });
+        const { data: tenants, error: tenantsError } = await supabase
+          .from('tenants')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-          if (tenantsError) {
-            // If tenants table doesn't exist, create mock data for demo
-            if (tenantsError.code === 'PGRST116' || tenantsError.message.includes('relation')) {
-              console.warn('Tenants table not found, using mock data for admin demo');
-              tenants = [
-                {
-                  id: 'mock-parkbus-id',
-                  name: 'ParkBus',
-                  slug: 'parkbus',
-                  subscription_plan: 'enterprise',
-                  subscription_status: 'active',
-                  created_at: new Date().toISOString(),
-                },
-                {
-                  id: 'mock-rocky-id',
-                  name: 'Rocky Mountain Tours',
-                  slug: 'rockymountain',
-                  subscription_plan: 'professional',
-                  subscription_status: 'active',
-                  created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                },
-                {
-                  id: 'mock-adventure-id',
-                  name: 'Adventure Bus Co',
-                  slug: 'adventurebus',
-                  subscription_plan: 'starter',
-                  subscription_status: 'trial',
-                  created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-                }
-              ];
-            } else {
-              throw tenantsError;
-            }
-          } else {
-            tenants = tenantsData || [];
-          }
-        } catch (dbError) {
-          console.warn('Database error, using mock tenants:', dbError);
-          tenants = [
-            {
-              id: 'mock-parkbus-id',
-              name: 'ParkBus',
-              slug: 'parkbus',
-              subscription_plan: 'enterprise',
-              subscription_status: 'active',
-              created_at: new Date().toISOString(),
-            }
-          ];
+        if (tenantsError) {
+          console.error('Error loading tenants:', tenantsError);
+          throw new Error(`Failed to load tenants: ${tenantsError.message}`);
         }
 
         // Calculate basic stats
@@ -135,125 +88,191 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded mb-6 w-64"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 font-medium">Failed to load dashboard</p>
-          <p className="text-gray-500 text-sm mt-1">{error}</p>
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 font-medium">Failed to load dashboard</p>
+            <p className="text-gray-500 text-sm mt-1">{error}</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Platform Dashboard</h1>
-        <p className="text-gray-600 mt-2">Overview of all tenants and platform metrics</p>
+    <div className="p-6 space-y-6">
+      {/* Welcome Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Platform Dashboard
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Overview of all tenants and platform metrics.
+          </p>
+        </div>
+        <Badge 
+          variant="default"
+          className="text-sm"
+        >
+          Super Admin Access
+        </Badge>
       </div>
 
-      {/* Stats Cards */}
+      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tenants</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTenants}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.activeTenants} active
-            </p>
-          </CardContent>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Tenants</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalTenants}</p>
+              <p className="text-sm text-green-600 mt-1">{stats.activeTenants} active</p>
+            </div>
+            <Building className="w-8 h-8 text-blue-600" />
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalBookings}</div>
-            <p className="text-xs text-muted-foreground">
-              This month
-            </p>
-          </CardContent>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalBookings}</p>
+              <p className="text-sm text-green-600 mt-1">+15% from last month</p>
+            </div>
+            <Calendar className="w-8 h-8 text-green-600" />
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.monthlyRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              +20.1% from last month
-            </p>
-          </CardContent>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
+              <p className="text-2xl font-bold text-gray-900">${stats.monthlyRevenue.toLocaleString()}</p>
+              <p className="text-sm text-green-600 mt-1">+20% from last month</p>
+            </div>
+            <DollarSign className="w-8 h-8 text-purple-600" />
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingApprovals}</div>
-            <p className="text-xs text-muted-foreground">
-              Require attention
-            </p>
-          </CardContent>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Pending Approvals</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.pendingApprovals}</p>
+              <p className="text-sm text-yellow-600 mt-1">Require attention</p>
+            </div>
+            <Users className="w-8 h-8 text-indigo-600" />
+          </div>
         </Card>
       </div>
 
-      {/* Recent Tenants */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Tenants</CardTitle>
-          <CardDescription>
-            Latest tenant registrations and activity
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Tenants */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Recent Tenants</h3>
+            <a href="/admin/tenants" className="text-sm text-blue-600 hover:text-blue-800">
+              View all →
+            </a>
+          </div>
           <div className="space-y-4">
             {recentTenants.map((tenant) => (
-              <div key={tenant.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div key={tenant.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-4">
                   <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                     <Building className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-medium">{tenant.name}</p>
-                    <p className="text-sm text-gray-500">@{tenant.slug}</p>
+                    <p className="font-medium text-gray-900">{tenant.name}</p>
+                    <p className="text-sm text-gray-600">@{tenant.slug}</p>
+                    <p className="text-xs text-gray-500">{new Date(tenant.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="text-right">
                   <Badge 
-                    variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'}
+                    variant={tenant.subscription_plan === 'enterprise' ? 'default' : 'secondary'}
+                    className="text-xs mb-1"
                   >
                     {tenant.subscription_plan}
                   </Badge>
-                  <Badge 
-                    variant={tenant.subscription_status === 'active' ? 'default' : 'destructive'}
-                  >
-                    {tenant.subscription_status}
-                  </Badge>
+                  <div>
+                    <Badge 
+                      variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {tenant.subscription_status}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </Card>
+
+        {/* Platform Activity */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Platform Activity</h3>
+            <a href="/admin/support" className="text-sm text-blue-600 hover:text-blue-800">
+              View all →
+            </a>
+          </div>
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-900">New Support Ticket</p>
+                  <p className="text-sm text-gray-600">Payment integration issue</p>
+                  <p className="text-xs text-gray-500">2 hours ago</p>
+                </div>
+                <Badge variant="secondary" className="text-xs">
+                  High Priority
+                </Badge>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-900">Tenant Registration</p>
+                  <p className="text-sm text-gray-600">Rocky Mountain Tours signed up</p>
+                  <p className="text-xs text-gray-500">5 hours ago</p>
+                </div>
+                <Badge variant="default" className="text-xs">
+                  New
+                </Badge>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-900">Plan Upgrade</p>
+                  <p className="text-sm text-gray-600">ParkBus upgraded to Enterprise</p>
+                  <p className="text-xs text-gray-500">1 day ago</p>
+                </div>
+                <Badge variant="default" className="text-xs">
+                  Revenue
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 } 

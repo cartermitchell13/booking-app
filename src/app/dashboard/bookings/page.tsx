@@ -1,6 +1,6 @@
 'use client';
 
-import { useTenant } from '@/lib/tenant-context';
+import { useTenant, useTenantSupabase } from '@/lib/tenant-context';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -18,118 +18,204 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
-// Mock booking data
-const mockBookings = [
-  {
-    id: 'BK-2024-001',
-    customerName: 'Sarah Johnson',
-    customerEmail: 'sarah.johnson@email.com',
-    customerPhone: '+1 (555) 123-4567',
-    tripName: 'Banff National Park Bus Tour',
-    tripDate: '2024-01-25',
-    tripTime: '09:00 AM',
-    passengers: 2,
-    totalAmount: 178,
-    status: 'confirmed',
-    paymentStatus: 'paid',
-    bookingDate: '2024-01-15',
-    notes: 'Anniversary trip, requested window seats',
-    pickupLocation: 'Calgary Downtown'
-  },
-  {
-    id: 'BK-2024-002',
-    customerName: 'Mike Chen',
-    customerEmail: 'mike.chen@email.com',
-    customerPhone: '+1 (555) 987-6543',
-    tripName: 'Lake Louise Day Trip',
-    tripDate: '2024-01-26',
-    tripTime: '10:00 AM',
-    passengers: 4,
-    totalAmount: 500,
-    status: 'pending',
-    paymentStatus: 'pending',
-    bookingDate: '2024-01-18',
-    notes: 'Group booking, dietary restrictions noted',
-    pickupLocation: 'Banff Centre'
-  },
-  {
-    id: 'BK-2024-003',
-    customerName: 'Emily Davis',
-    customerEmail: 'emily.davis@email.com',
-    customerPhone: '+1 (555) 456-7890',
-    tripName: 'Vancouver Food Walking Tour',
-    tripDate: '2024-01-24',
-    tripTime: '02:00 PM',
-    passengers: 1,
-    totalAmount: 45,
-    status: 'confirmed',
-    paymentStatus: 'paid',
-    bookingDate: '2024-01-12',
-    notes: 'Vegetarian preferences',
-    pickupLocation: 'Gastown'
-  },
-  {
-    id: 'BK-2024-004',
-    customerName: 'David Wilson',
-    customerEmail: 'david.wilson@email.com',
-    customerPhone: '+1 (555) 321-0987',
-    tripName: 'Jasper Wildlife Tour',
-    tripDate: '2024-01-20',
-    tripTime: '08:00 AM',
-    passengers: 3,
-    totalAmount: 285,
-    status: 'cancelled',
-    paymentStatus: 'refunded',
-    bookingDate: '2024-01-10',
-    notes: 'Cancelled due to weather concerns',
-    pickupLocation: 'Jasper Townsite'
-  }
-];
+interface Booking {
+  id: string;
+  booking_reference: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string;
+  product_name: string;
+  booking_date: string;
+  start_time?: string;
+  passengers: number;
+  total_amount: number;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+  payment_status: 'pending' | 'paid' | 'partially_paid' | 'refunded' | 'failed';
+  special_requests?: string;
+  created_at: string;
+}
 
 const statusColors = {
   confirmed: 'bg-green-100 text-green-800',
   pending: 'bg-yellow-100 text-yellow-800',
   cancelled: 'bg-red-100 text-red-800',
-  completed: 'bg-blue-100 text-blue-800'
+  completed: 'bg-blue-100 text-blue-800',
+  no_show: 'bg-gray-100 text-gray-800'
 };
 
 const paymentStatusColors = {
   paid: 'bg-green-100 text-green-800',
   pending: 'bg-yellow-100 text-yellow-800',
   refunded: 'bg-gray-100 text-gray-800',
-  failed: 'bg-red-100 text-red-800'
+  failed: 'bg-red-100 text-red-800',
+  partially_paid: 'bg-orange-100 text-orange-800'
 };
 
 export default function BookingsManagement() {
-  const { tenant, isLoading } = useTenant();
-  const [bookings, setBookings] = useState(mockBookings);
+  const { tenant, isLoading: tenantLoading } = useTenant();
+  const { supabase } = useTenantSupabase();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
   const [dateRange, setDateRange] = useState('all');
+
+  useEffect(() => {
+    const loadBookings = async () => {
+      if (!tenant?.id || !supabase) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // For mock tenant ID, use the real ParkBus tenant ID
+        const actualTenantId = tenant.id === 'mock-parkbus-id' 
+          ? '20ee5f83-1019-46c7-9382-05a6f1ded9bf' 
+          : tenant.id;
+
+        // Fetch bookings with product information
+        const { data: bookingData, error: bookingsError } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            products!inner (
+              name,
+              product_instances (
+                start_time,
+                end_time
+              )
+            )
+          `)
+          .eq('tenant_id', actualTenantId)
+          .order('created_at', { ascending: false });
+
+        if (bookingsError) {
+          console.error('Error fetching bookings:', bookingsError);
+          throw bookingsError;
+        }
+
+        // Transform bookings data
+        const transformedBookings: Booking[] = (bookingData || []).map(booking => ({
+          id: booking.id,
+          booking_reference: booking.booking_reference || `BK-${booking.id.slice(0, 8)}`,
+          customer_name: booking.customer_name || 'Guest Customer',
+          customer_email: booking.customer_email || 'customer@example.com',
+          customer_phone: booking.customer_phone,
+          product_name: booking.products?.name || 'Unknown Product',
+          booking_date: booking.products?.product_instances?.[0]?.start_time 
+            ? new Date(booking.products.product_instances[0].start_time).toLocaleDateString()
+            : 'TBD',
+          start_time: booking.products?.product_instances?.[0]?.start_time 
+            ? new Date(booking.products.product_instances[0].start_time).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              })
+            : 'TBD',
+          passengers: booking.quantity || 1,
+          total_amount: (booking.total_amount || 0) / 100, // Convert from cents
+          status: booking.status || 'pending',
+          payment_status: booking.payment_status || 'pending',
+          special_requests: booking.special_requests,
+          created_at: booking.created_at
+        }));
+
+        setBookings(transformedBookings);
+
+      } catch (err: any) {
+        console.error('Error loading bookings:', err);
+        setError(err.message || 'Failed to load bookings');
+        setBookings([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadBookings();
+  }, [tenant?.id, supabase]);
 
   // Filter bookings
   const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = booking.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.tripName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = booking.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         booking.customer_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         booking.booking_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         booking.product_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesPayment = paymentFilter === 'all' || booking.payment_status === paymentFilter;
+    return matchesSearch && matchesStatus && matchesPayment;
   });
 
-  if (isLoading) {
+  const handleUpdateBookingStatus = async (bookingId: string, newStatus: string) => {
+    if (!supabase || !window.confirm(`Are you sure you want to mark this booking as ${newStatus}?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: newStatus })
+        .eq('id', bookingId)
+        .eq('tenant_id', tenant?.id);
+
+      if (error) {
+        console.error('Error updating booking status:', error);
+        alert('Failed to update booking status: ' + error.message);
+        return;
+      }
+
+      // Update local state
+      setBookings(prev => prev.map(booking => 
+        booking.id === bookingId ? { ...booking, status: newStatus as any } : booking
+      ));
+      
+      alert('Booking status updated successfully!');
+    } catch (error) {
+      console.error('Error updating booking:', error);
+      alert('Failed to update booking. Please try again.');
+    }
+  };
+
+  const handleRefreshBookings = () => {
+    window.location.reload();
+  };
+
+  if (tenantLoading || isLoading) {
     return (
       <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded mb-6 w-64"></div>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading bookings...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+            <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Bookings</h3>
+            <p className="text-red-600 text-sm mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -151,7 +237,10 @@ export default function BookingsManagement() {
             <Download className="w-4 h-4 mr-2" />
             Export
           </button>
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button 
+            onClick={handleRefreshBookings}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </button>
@@ -196,7 +285,7 @@ export default function BookingsManagement() {
             <div>
               <p className="text-sm text-gray-600">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${bookings.filter(b => b.paymentStatus === 'paid').reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString()}
+                ${bookings.filter(b => b.payment_status === 'paid').reduce((sum, b) => sum + b.total_amount, 0).toFixed(2)}
               </p>
             </div>
             <DollarSign className="w-6 h-6 text-green-600" />
@@ -204,14 +293,14 @@ export default function BookingsManagement() {
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filters & Search */}
       <Card className="p-4">
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by customer, booking ID, or trip..."
+              placeholder="Search by customer, booking reference, or product..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -225,132 +314,159 @@ export default function BookingsManagement() {
               className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Status</option>
-              <option value="confirmed">Confirmed</option>
               <option value="pending">Pending</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="confirmed">Confirmed</option>
               <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="no_show">No Show</option>
+            </select>
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Payments</option>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="partially_paid">Partially Paid</option>
+              <option value="refunded">Refunded</option>
+              <option value="failed">Failed</option>
             </select>
           </div>
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Dates</option>
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-          </select>
         </div>
       </Card>
 
       {/* Bookings List */}
-      <div className="space-y-4">
-        {filteredBookings.map((booking) => (
-          <Card key={booking.id} className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-4">
-                    <h3 className="text-lg font-semibold text-gray-900">{booking.id}</h3>
-                    <Badge className={statusColors[booking.status as keyof typeof statusColors]}>
-                      {booking.status}
-                    </Badge>
-                    <Badge className={paymentStatusColors[booking.paymentStatus as keyof typeof paymentStatusColors]}>
-                      {booking.paymentStatus}
-                    </Badge>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-gray-900">${booking.totalAmount}</p>
-                    <p className="text-sm text-gray-600">{booking.passengers} passenger{booking.passengers > 1 ? 's' : ''}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Customer Info */}
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Customer Information</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center">
-                        <Users className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="font-medium">{booking.customerName}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                        <a href={`mailto:${booking.customerEmail}`} className="text-blue-600 hover:text-blue-800">
-                          {booking.customerEmail}
-                        </a>
-                      </div>
-                      <div className="flex items-center">
-                        <Phone className="w-4 h-4 text-gray-400 mr-2" />
-                        <a href={`tel:${booking.customerPhone}`} className="text-blue-600 hover:text-blue-800">
-                          {booking.customerPhone}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Trip Info */}
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Trip Information</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="font-medium">{booking.tripName}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                        <span>{booking.tripDate} at {booking.tripTime}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <MapPin className="w-4 h-4 text-gray-400 mr-2" />
-                        <span>{booking.pickupLocation}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {booking.notes && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Notes:</span> {booking.notes}
-                    </p>
-                  </div>
-                )}
-
-                <div className="mt-4 text-xs text-gray-500">
-                  Booked on {booking.bookingDate}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center space-x-2 ml-6">
-                <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Details">
-                  <Eye className="w-4 h-4" />
-                </button>
-                <button className="p-2 text-gray-400 hover:text-green-600 transition-colors" title="Send Email">
-                  <Mail className="w-4 h-4" />
-                </button>
-                <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Call Customer">
-                  <Phone className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {filteredBookings.length === 0 && (
-        <Card className="p-8 text-center">
+      {filteredBookings.length === 0 ? (
+        <Card className="p-12 text-center">
           <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings found</h3>
-          <p className="text-gray-600">
-            {searchTerm || statusFilter !== 'all' 
-              ? 'Try adjusting your search or filter criteria' 
-              : 'Bookings will appear here as customers make reservations'}
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {bookings.length === 0 ? 'No bookings yet' : 'No bookings match your search'}
+          </h3>
+          <p className="text-gray-600 mb-6">
+            {bookings.length === 0 
+              ? 'When customers book your offerings, they will appear here.'
+              : 'Try adjusting your search or filter criteria.'}
           </p>
+          {bookings.length === 0 && (
+            <Link 
+              href="/dashboard/offerings"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-block"
+            >
+              Create Your First Offering
+            </Link>
+          )}
         </Card>
+      ) : (
+        <div className="space-y-4">
+          {filteredBookings.map((booking) => (
+            <Card key={booking.id} className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {booking.booking_reference}
+                      </h3>
+                      <p className="text-gray-600">{booking.product_name}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Badge className={statusColors[booking.status]}>
+                        {booking.status}
+                      </Badge>
+                      <Badge className={paymentStatusColors[booking.payment_status]}>
+                        {booking.payment_status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Customer</p>
+                      <p className="text-gray-900">{booking.customer_name}</p>
+                      <p className="text-sm text-gray-600">{booking.customer_email}</p>
+                      {booking.customer_phone && (
+                        <p className="text-sm text-gray-600">{booking.customer_phone}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Trip Date & Time</p>
+                      <div className="flex items-center text-gray-900">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        {booking.booking_date}
+                      </div>
+                      <div className="flex items-center text-gray-600">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {booking.start_time}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Passengers</p>
+                      <div className="flex items-center text-gray-900">
+                        <Users className="w-4 h-4 mr-1" />
+                        {booking.passengers} {booking.passengers === 1 ? 'passenger' : 'passengers'}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Amount</p>
+                      <div className="flex items-center text-gray-900 font-semibold">
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        ${booking.total_amount.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {booking.special_requests && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-gray-600 mb-1">Special Requests</p>
+                      <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                        {booking.special_requests}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <p className="text-xs text-gray-500">
+                      Booked on {new Date(booking.created_at).toLocaleDateString()}
+                    </p>
+                    <div className="flex space-x-2">
+                      {booking.status === 'pending' && (
+                        <button 
+                          onClick={() => handleUpdateBookingStatus(booking.id, 'confirmed')}
+                          className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors"
+                        >
+                          Confirm
+                        </button>
+                      )}
+                      {booking.status === 'confirmed' && (
+                        <button 
+                          onClick={() => handleUpdateBookingStatus(booking.id, 'completed')}
+                          className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                        >
+                          Mark Complete
+                        </button>
+                      )}
+                      {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                        <button 
+                          onClick={() => handleUpdateBookingStatus(booking.id, 'cancelled')}
+                          className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors">
+                        <Mail className="w-4 h-4" />
+                      </button>
+                      <button className="p-1 text-gray-400 hover:text-green-600 transition-colors">
+                        <Phone className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );

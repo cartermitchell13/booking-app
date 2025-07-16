@@ -123,3 +123,9 @@ Based on industry best practices for travel & ticket booking:
 
 ---
 This plan aligns the UI closely with the provided mockup while ensuring scalability, performance, and a first-class developer experience.
+
+## 13. Email System Integration
+- [x] Wire up the email system to the booking process
+  - [x] It should be the booking confirmation template
+  - [x] It should populate with all the trip details in their booking based on what's in the supabase database
+- [x] Fix booking confirmation email not being sent

@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { useTenant } from '@/lib/tenant-context';
+import { useTenant, useTenantBranding } from '@/lib/tenant-context';
+import { useAuth } from '@/lib/auth-context';
+import { PageLoading } from '@/components/ui';
 import { 
   User,
   Mail,
@@ -195,33 +197,30 @@ export default function ProfilePage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <PageLoading message="Loading your profile..." />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow">
+      <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-6">
-            <div className="flex items-center">
+          <div className="flex items-center justify-between py-4 sm:py-6">
+            <div className="flex items-center min-w-0 flex-1">
               <Link
                 href="/account"
-                className="mr-4 p-2 rounded-md hover:bg-gray-100"
+                className="mr-3 sm:mr-4 p-2 rounded-lg hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Back to account"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 text-gray-600" />
               </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
-                <p className="text-gray-600">Manage your personal information and account settings</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">Profile Settings</h1>
+                <p className="text-sm sm:text-base text-gray-600 mt-1 leading-relaxed">Manage your personal information and security</p>
               </div>
             </div>
             {user && (
-              <div className="text-sm text-gray-600">
+              <div className="hidden sm:block text-sm text-gray-600 ml-4">
                 {user.first_name} {user.last_name}
               </div>
             )}
@@ -229,29 +228,29 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <div className="max-w-4xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+        <div className="sm:px-0">
           
           {/* Success/Error Messages */}
           {successMessage && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
-              <div className="flex">
-                <CheckCircle className="h-5 w-5 text-green-400 mr-2 mt-0.5" />
-                <div className="text-green-800">{successMessage}</div>
+            <div className="mb-6 bg-green-50 border-2 border-green-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <CheckCircle className="h-5 w-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
+                <div className="text-green-800 font-medium leading-relaxed">{successMessage}</div>
               </div>
             </div>
           )}
 
           {errorMessage && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-              <div className="flex">
-                <AlertCircle className="h-5 w-5 text-red-400 mr-2 mt-0.5" />
-                <div className="text-red-800">{errorMessage}</div>
+            <div className="mb-6 bg-red-50 border-2 border-red-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-red-500 mr-3 mt-0.5 flex-shrink-0" />
+                <div className="text-red-800 font-medium leading-relaxed">{errorMessage}</div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-6 lg:grid lg:grid-cols-3 lg:gap-8 lg:space-y-0">
             
             {/* Profile Information */}
             <div className="lg:col-span-2">
@@ -262,87 +261,122 @@ export default function ProfilePage() {
                     Personal Information
                   </h3>
                 </div>
-                <form onSubmit={handleProfileUpdate} className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleProfileUpdate} className="p-4 sm:p-6 space-y-6">
+                  <div className="grid grid-cols-1 gap-6">
                     <div>
-                      <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="first_name" className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-900 mb-2 sm:mb-1">
                         First Name
                       </label>
                       <input
                         type="text"
                         id="first_name"
+                        name="first_name"
+                        autoComplete="given-name"
+                        inputMode="text"
                         required
                         value={profileData.first_name}
                         onChange={(e) => setProfileData({...profileData, first_name: e.target.value})}
-                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-2 focus:border-transparent"
+                        className="block w-full min-h-[48px] px-4 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:border-transparent focus:outline-none transition-all duration-200"
+                        style={{ 
+                          borderColor: profileData.first_name ? (tenant?.branding?.primary_color || '#10B981') : ''
+                        }}
+                        placeholder="Enter your first name"
                       />
                     </div>
                     <div>
-                      <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="last_name" className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-900 mb-2 sm:mb-1">
                         Last Name
                       </label>
                       <input
                         type="text"
                         id="last_name"
+                        name="last_name"
+                        autoComplete="family-name"
+                        inputMode="text"
                         required
                         value={profileData.last_name}
                         onChange={(e) => setProfileData({...profileData, last_name: e.target.value})}
-                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-2 focus:border-transparent"
+                        className="block w-full min-h-[48px] px-4 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:border-transparent focus:outline-none transition-all duration-200"
+                        style={{ 
+                          borderColor: profileData.last_name ? (tenant?.branding?.primary_color || '#10B981') : ''
+                        }}
+                        placeholder="Enter your last name"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="email" className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-900 mb-2 sm:mb-1">
                       Email Address
                     </label>
-                    <div className="mt-1 relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Mail className="h-5 w-5 text-gray-400" />
                       </div>
                       <input
                         type="email"
                         id="email"
+                        name="email"
+                        autoComplete="email"
+                        inputMode="email"
+                        required
                         value={profileData.email}
                         onChange={(e) => setProfileData({...profileData, email: e.target.value})}
-                        className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-2 focus:border-transparent"
+                        className="block w-full min-h-[48px] pl-12 pr-4 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:border-transparent focus:outline-none transition-all duration-200"
+                        style={{ 
+                          borderColor: profileData.email ? (tenant?.branding?.primary_color || '#10B981') : ''
+                        }}
+                        placeholder="Enter your email address"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                      Phone Number (Optional)
+                    <label htmlFor="phone" className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-900 mb-2 sm:mb-1">
+                      Phone Number <span className="text-gray-500 font-normal">(Optional)</span>
                     </label>
-                    <div className="mt-1 relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Phone className="h-5 w-5 text-gray-400" />
                       </div>
                       <input
                         type="tel"
                         id="phone"
+                        name="phone"
+                        autoComplete="tel"
+                        inputMode="tel"
                         value={profileData.phone}
                         onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                        pattern="[+]?[\d\s\(\)\-]+"
+                        className="block w-full min-h-[48px] pl-12 pr-4 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:border-transparent focus:outline-none transition-all duration-200"
+                        style={{ 
+                          borderColor: profileData.phone ? (tenant?.branding?.primary_color || '#10B981') : ''
+                        }}
                         placeholder="+1 (555) 123-4567"
-                        className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-2 focus:border-transparent"
-                        style={{ focusRingColor: tenant?.branding?.primary_color || '#10B981' }}
                       />
                     </div>
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="pt-4">
                     <button
                       type="submit"
                       disabled={isSaving}
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ backgroundColor: tenant?.branding?.primary_color || '#10B981' }}
+                      className="w-full sm:w-auto inline-flex justify-center items-center min-h-[48px] px-6 py-3 border border-transparent shadow-lg text-base font-semibold rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-xl focus:ring-2 focus:ring-offset-2"
+                      style={{ 
+                        backgroundColor: tenant?.branding?.primary_color || '#10B981'
+                      }}
                     >
                       {isSaving ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                          Saving Changes...
+                        </>
                       ) : (
-                        <Save className="h-4 w-4 mr-2" />
+                        <>
+                          <Save className="h-5 w-5 mr-3" />
+                          Save Changes
+                        </>
                       )}
-                      {isSaving ? 'Saving...' : 'Save Changes'}
                     </button>
                   </div>
                 </form>
@@ -356,109 +390,123 @@ export default function ProfilePage() {
                     Change Password
                   </h3>
                 </div>
-                <form onSubmit={handlePasswordUpdate} className="p-6 space-y-6">
-                  <div className="space-y-4">
+                <form onSubmit={handlePasswordUpdate} className="p-4 sm:p-6 space-y-6">
+                  <div className="space-y-6">
                     <div>
-                      <label htmlFor="current_password" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="current_password" className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-900 mb-2 sm:mb-1">
                         Current Password
                       </label>
-                      <div className="mt-1 relative">
+                      <div className="relative">
                         <input
                           type={showCurrentPassword ? 'text' : 'password'}
                           id="current_password"
+                          name="current_password"
+                          autoComplete="current-password"
                           required
                           value={passwordData.current_password}
                           onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
-                          className="block w-full pr-10 border-gray-300 rounded-md shadow-sm focus:ring-2 focus:border-transparent"
-                          style={{ focusRingColor: tenant?.branding?.primary_color || '#10B981' }}
+                          className="block w-full min-h-[48px] pr-12 pl-4 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:border-transparent focus:outline-none transition-all duration-200"
+                          placeholder="Enter your current password"
                         />
                         <button
                           type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center min-h-[48px] min-w-[48px] focus:outline-none focus:ring-2 focus:ring-offset-1 rounded-r-lg"
                           onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
                         >
                           {showCurrentPassword ? (
-                            <EyeOff className="h-5 w-5 text-gray-400" />
+                            <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                           ) : (
-                            <Eye className="h-5 w-5 text-gray-400" />
+                            <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                           )}
                         </button>
                       </div>
                     </div>
 
                     <div>
-                      <label htmlFor="new_password" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="new_password" className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-900 mb-2 sm:mb-1">
                         New Password
                       </label>
-                      <div className="mt-1 relative">
+                      <div className="relative">
                         <input
                           type={showNewPassword ? 'text' : 'password'}
                           id="new_password"
+                          name="new_password"
+                          autoComplete="new-password"
                           required
                           value={passwordData.new_password}
                           onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
-                          className="block w-full pr-10 border-gray-300 rounded-md shadow-sm focus:ring-2 focus:border-transparent"
-                          style={{ focusRingColor: tenant?.branding?.primary_color || '#10B981' }}
+                          className="block w-full min-h-[48px] pr-12 pl-4 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:border-transparent focus:outline-none transition-all duration-200"
+                          placeholder="Enter your new password"
                         />
                         <button
                           type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center min-h-[48px] min-w-[48px] focus:outline-none focus:ring-2 focus:ring-offset-1 rounded-r-lg"
                           onClick={() => setShowNewPassword(!showNewPassword)}
+                          aria-label={showNewPassword ? 'Hide password' : 'Show password'}
                         >
                           {showNewPassword ? (
-                            <EyeOff className="h-5 w-5 text-gray-400" />
+                            <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                           ) : (
-                            <Eye className="h-5 w-5 text-gray-400" />
+                            <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                           )}
                         </button>
                       </div>
-                      <p className="mt-1 text-sm text-gray-500">
+                      <p className="mt-2 text-sm text-gray-600 leading-relaxed">
                         Must be at least 8 characters long
                       </p>
                     </div>
 
                     <div>
-                      <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="confirm_password" className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-900 mb-2 sm:mb-1">
                         Confirm New Password
                       </label>
-                      <div className="mt-1 relative">
+                      <div className="relative">
                         <input
                           type={showConfirmPassword ? 'text' : 'password'}
                           id="confirm_password"
+                          name="confirm_password"
+                          autoComplete="new-password"
                           required
                           value={passwordData.confirm_password}
                           onChange={(e) => setPasswordData({...passwordData, confirm_password: e.target.value})}
-                          className="block w-full pr-10 border-gray-300 rounded-md shadow-sm focus:ring-2 focus:border-transparent"
-                          style={{ focusRingColor: tenant?.branding?.primary_color || '#10B981' }}
+                          className="block w-full min-h-[48px] pr-12 pl-4 py-3 text-base border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:border-transparent focus:outline-none transition-all duration-200"
+                          placeholder="Confirm your new password"
                         />
                         <button
                           type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center min-h-[48px] min-w-[48px] focus:outline-none focus:ring-2 focus:ring-offset-1 rounded-r-lg"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                         >
                           {showConfirmPassword ? (
-                            <EyeOff className="h-5 w-5 text-gray-400" />
+                            <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                           ) : (
-                            <Eye className="h-5 w-5 text-gray-400" />
+                            <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                           )}
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="pt-4">
                     <button
                       type="submit"
                       disabled={isUpdatingPassword}
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto inline-flex justify-center items-center min-h-[48px] px-6 py-3 border border-transparent shadow-lg text-base font-semibold rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-xl focus:ring-2 focus:ring-offset-2"
                       style={{ backgroundColor: tenant?.branding?.primary_color || '#10B981' }}
                     >
                       {isUpdatingPassword ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                          Updating Password...
+                        </>
                       ) : (
-                        <Lock className="h-4 w-4 mr-2" />
+                        <>
+                          <Lock className="h-5 w-5 mr-3" />
+                          Update Password
+                        </>
                       )}
-                      {isUpdatingPassword ? 'Updating...' : 'Update Password'}
                     </button>
                   </div>
                 </form>

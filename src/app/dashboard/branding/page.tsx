@@ -69,6 +69,7 @@ export default function BrandingManagement() {
   const { tenant, isLoading, refreshTenant } = useTenant();
   const { supabase } = useTenantSupabase();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   
   const [brandingSettings, setBrandingSettings] = useState({
     logo_url: tenant?.branding?.logo_url || '/images/black-pb-logo.png',
@@ -84,7 +85,8 @@ export default function BrandingManagement() {
     custom_font_family: tenant?.branding?.custom_font_family || '',
     business_name: tenant?.name || 'ParkBus',
     tagline: 'Discover Amazing Adventures',
-    contact_email: 'hello@parkbus.ca'
+    contact_email: 'hello@parkbus.ca',
+    prefer_light_headings: tenant?.branding?.prefer_light_headings || false
   });
 
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
@@ -92,6 +94,7 @@ export default function BrandingManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
   const [fontUploadStatus, setFontUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [logoUploadStatus, setLogoUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const fontOptions = ['Inter', 'Roboto', 'Open Sans', 'Poppins', 'Montserrat', 'Custom Font'];
@@ -115,7 +118,8 @@ export default function BrandingManagement() {
         custom_font_family: tenant.branding?.custom_font_family || '',
         business_name: tenant.name || 'ParkBus',
         tagline: 'Discover Amazing Adventures',
-        contact_email: 'hello@parkbus.ca'
+        contact_email: 'hello@parkbus.ca',
+        prefer_light_headings: tenant.branding?.prefer_light_headings || false
       });
       setIsInitialized(true);
     }
@@ -172,6 +176,12 @@ export default function BrandingManagement() {
   }, [brandingSettings.primary_color, brandingSettings.accent_color, brandingSettings.background_color, brandingSettings.foreground_color, brandingSettings.secondary_color, brandingSettings.font_family, brandingSettings.custom_font_url, brandingSettings.custom_font_family]);
 
   const handleChange = (key: string, value: string) => {
+    setBrandingSettings(prev => ({ ...prev, [key]: value }));
+    setHasChanges(true);
+    setSaveStatus(null);
+  };
+
+  const handleBooleanChange = (key: string, value: boolean) => {
     setBrandingSettings(prev => ({ ...prev, [key]: value }));
     setHasChanges(true);
     setSaveStatus(null);
@@ -290,6 +300,129 @@ export default function BrandingManagement() {
     }
   };
 
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !supabase || !tenant?.id) {
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['.png', '.jpg', '.jpeg', '.svg', '.webp'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    
+    if (!allowedTypes.includes(fileExtension)) {
+      alert('Please upload a valid image file (.png, .jpg, .jpeg, .svg, .webp)');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    const maxSize = 2 * 1024 * 1024;
+    console.log('🖼️ File size check:', { 
+      fileSize: file.size, 
+      maxSize, 
+      isValid: file.size <= maxSize,
+      fileSizeInMB: (file.size / 1024 / 1024).toFixed(2) + 'MB'
+    });
+    
+    if (file.size > maxSize) {
+      alert(`Logo file must be smaller than 2MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return;
+    }
+
+    setLogoUploadStatus('uploading');
+
+    try {
+      // Debug information
+      console.log('🖼️ Starting logo upload:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        tenantId: tenant.id,
+        hasSupabase: !!supabase
+      });
+
+      // Generate unique filename (upload directly to tenant folder like fonts)
+      const timestamp = Date.now();
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '');
+      const fileName = `${tenant.id}/logo-${timestamp}-${sanitizedName}`;
+
+      console.log('🖼️ Generated file path:', fileName);
+
+      // Upload file to Supabase Storage with timeout
+      console.log('⬆️ Starting logo upload to tenant-assets bucket...');
+      
+      // Create upload promise with timeout
+      const uploadPromise = supabase.storage
+        .from('tenant-assets')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      // Create timeout promise (30 seconds)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Upload timeout after 30 seconds')), 30000)
+      );
+
+      // Race between upload and timeout
+      const { data: uploadData, error: uploadError } = await Promise.race([
+        uploadPromise,
+        timeoutPromise
+      ]) as any;
+
+      if (uploadError) {
+        console.error('❌ Logo upload error:', {
+          uploadError,
+          errorMessage: uploadError.message,
+          tenantId: tenant?.id,
+          fileName: fileName,
+          fileSize: file.size,
+          fullError: JSON.stringify(uploadError, null, 2)
+        });
+        throw uploadError;
+      }
+
+      console.log('✅ Logo uploaded successfully:', uploadData);
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('tenant-assets')
+        .getPublicUrl(fileName);
+
+      console.log('🌐 Logo public URL:', publicUrl);
+
+      // Update branding settings
+      setBrandingSettings(prev => ({
+        ...prev,
+        logo_url: publicUrl
+      }));
+
+      setHasChanges(true);
+      setLogoUploadStatus('success');
+      setSaveStatus(null);
+
+      // Clear success status after 3 seconds
+      setTimeout(() => setLogoUploadStatus('idle'), 3000);
+
+    } catch (error) {
+      console.error('❌ Logo upload failed:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        tenantId: tenant?.id,
+        fileName: file?.name,
+        fileSize: file?.size
+      });
+      setLogoUploadStatus('error');
+      setTimeout(() => setLogoUploadStatus('idle'), 3000);
+    } finally {
+      // Clear file input
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleRemoveCustomFont = () => {
     setBrandingSettings(prev => ({
       ...prev,
@@ -336,6 +469,7 @@ export default function BrandingManagement() {
         custom_font_url: brandingSettings.custom_font_url,
         custom_font_name: brandingSettings.custom_font_name,
         custom_font_family: brandingSettings.custom_font_family,
+        prefer_light_headings: brandingSettings.prefer_light_headings,
       };
 
       console.log('📝 Attempting to save branding:', {
@@ -426,7 +560,8 @@ export default function BrandingManagement() {
         custom_font_family: tenant.branding?.custom_font_family || '',
         business_name: tenant.name || 'ParkBus',
         tagline: 'Discover Amazing Adventures',
-        contact_email: 'hello@parkbus.ca'
+        contact_email: 'hello@parkbus.ca',
+        prefer_light_headings: tenant.branding?.prefer_light_headings || false
       });
       setHasChanges(false);
       setSaveStatus(null);
@@ -566,11 +701,31 @@ export default function BrandingManagement() {
                   className="w-12 h-12 object-contain border border-gray-200 rounded"
                 />
                 <div>
-                <button className="flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload New Logo
-                </button>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB</p>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.svg,.webp"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                    disabled={logoUploadStatus === 'uploading'}
+                  />
+                  <button 
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploadStatus === 'uploading'}
+                    className="flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {logoUploadStatus === 'uploading' ? 'Uploading...' : 'Upload New Logo'}
+                  </button>
+                  <p className="text-xs text-gray-500 mt-1">
+                    PNG, JPG, SVG, WebP up to 2MB
+                    {logoUploadStatus === 'success' && (
+                      <span className="text-green-600 ml-2">✓ Uploaded successfully</span>
+                    )}
+                    {logoUploadStatus === 'error' && (
+                      <span className="text-red-600 ml-2">✗ Upload failed</span>
+                    )}
+                  </p>
                 </div>
               </div>
               <div>
@@ -693,6 +848,22 @@ export default function BrandingManagement() {
                     <option key={font} value={font}>{font}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Heading Font Weight */}
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={brandingSettings.prefer_light_headings}
+                    onChange={(e) => handleBooleanChange('prefer_light_headings', e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700">Use lighter headings</span>
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Some display or decorative fonts look better with normal weight instead of bold headings
+                </p>
               </div>
 
               {/* Custom Font Upload Section */}
