@@ -18,7 +18,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { CreateOfferingModal } from '@/components/offerings/CreateOfferingModal';
+import { useRouter } from 'next/navigation';
 import { offeringTypeColors, statusColors } from '@/lib/offerings-constants';
 
 interface Product {
@@ -44,13 +44,13 @@ interface Product {
 }
 
 export default function OfferingsManagement() {
+  const router = useRouter();
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { getProducts, supabase } = useTenantSupabase();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,45 +89,7 @@ export default function OfferingsManagement() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleCreateOffering = async (productData: any) => {
-    if (!tenant || !supabase) {
-      alert('Please ensure you are logged in and tenant is loaded');
-      return;
-    }
 
-    setIsCreating(true);
-    try {
-      // Insert the product into the database using the raw Supabase client
-      const { data: product, error } = await supabase
-        .from('products')
-        .insert([{
-          tenant_id: tenant.id,
-          ...productData
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating product:', error);
-        alert('Failed to create offering: ' + error.message);
-        return;
-      }
-
-      console.log('Product created successfully:', product);
-
-      // Reload products to get fresh data
-      const updatedProducts = await getProducts();
-      setProducts(updatedProducts || []);
-      
-      setShowCreateModal(false);
-      alert('Offering created successfully!');
-    } catch (error) {
-      console.error('Error creating offering:', error);
-      alert('Failed to create offering. Please try again.');
-    } finally {
-      setIsCreating(false);
-    }
-  };
 
   const handleDeleteProduct = async (productId: string) => {
     if (!supabase || !window.confirm('Are you sure you want to delete this offering?')) {
@@ -225,7 +187,7 @@ export default function OfferingsManagement() {
           </p>
         </div>
         <button 
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => router.push('/dashboard/offerings/create')}
           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           disabled={isCreating}
         >
@@ -323,7 +285,7 @@ export default function OfferingsManagement() {
           </p>
           {products.length === 0 && (
             <button 
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => router.push('/dashboard/offerings/create')}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Create Your First Offering
@@ -419,14 +381,7 @@ export default function OfferingsManagement() {
         </div>
       )}
 
-      {/* Create Offering Modal */}
-      {showCreateModal && (
-        <CreateOfferingModal 
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSubmit={handleCreateOffering}
-        />
-      )}
+
     </div>
   );
 } 

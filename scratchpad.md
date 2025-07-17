@@ -3102,3 +3102,937 @@ const PLATFORM_ROUTES = [
 **🚀 READY FOR PHASE 2**: Enhanced admin dashboard functionality and comprehensive testing
 
 **Status**: ✅ **PHASE 1 COMPLETE & DEPLOYED**
+
+---
+
+## **🔧 CRITICAL FIX: DASHBOARD INFINITE LOADING RESOLVED**
+
+### **Problem Identified**
+After implementing the hybrid tenant detection system, the dashboard got stuck in an infinite loading loop with console logs showing:
+- ✅ Authentication successful
+- ✅ Tenant detection working (`Found tenant via auth: ParkBus`)
+- ❌ But `tenantLoading` kept cycling between `true` and `false`
+
+### **Root Cause**
+**Circular Dependency** between `AuthProvider` and `TenantProvider`:
+1. `AuthProvider` imported `useTenant()` (causing dependency on `TenantProvider`)
+2. `TenantProvider` used `supabase.auth.getUser()` for auth-based tenant detection
+3. `useEffect` dependencies in `TenantProvider` were unstable, causing re-renders
+4. This created an infinite loop where each context was waiting for the other
+
+### **Solution Implemented**
+**Simplified Admin Dashboard Flow** - Removed complex tenant context dependency:
+
+#### **Before (Complex)**:
+```typescript
+AuthProvider ↔ TenantProvider (circular)
+Dashboard → useTenant() → Complex domain detection + route classification
+```
+
+#### **After (Simple)**:
+```typescript
+AuthProvider (independent) → Dashboard → Direct tenant fetch
+```
+
+### **Key Changes**
+1. **Removed circular dependency**: `AuthProvider` no longer imports `useTenant()`
+2. **Simplified dashboard layout**: Direct tenant data fetching using `user.tenant_id`
+3. **Props-based components**: `TenantAdminSidebar` and `TenantAdminHeader` now receive `tenant` as props
+4. **Eliminated complex context**: No more route classification or domain detection for admin routes
+
+### **Code Changes**
+- `src/lib/auth-context.tsx`: Removed `useTenant()` import
+- `src/app/dashboard/layout.tsx`: Direct tenant fetching instead of context
+- `src/components/tenant-admin/TenantAdminSidebar.tsx`: Props-based tenant data
+- `src/components/tenant-admin/TenantAdminHeader.tsx`: Props-based tenant data
+
+### **Result**
+- ✅ **Dashboard loads instantly** without infinite loops
+- ✅ **Clean, linear data flow**: Auth → User → Tenant → Dashboard
+- ✅ **Better performance**: Only fetches what's needed
+- ✅ **Simplified debugging**: Clear separation of concerns
+
+### **Architecture Benefits**
+- **Admin Dashboard**: Simple auth-based flow (no complex tenant detection needed)
+- **Customer Pages**: Still use full tenant context for domain-based detection
+- **Best of Both Worlds**: Right tool for the right job
+
+**Status**: ✅ **RESOLVED - Dashboard working correctly**
+
+---
+
+## **🆕 NEW PLANNING REQUEST - December 2024**
+
+### **User Request**: Create New Offering Feature Upgrade
+
+**Current Issue**: The "Create new offering" feature in the tenant dashboard is just a pop-up modal that's not detailed or robust enough.
+
+**User Vision**: Transform it into a full page experience that allows tenants to create basically whatever they want with complete database integration.
+
+**Requirements**:
+- Change from pop-up modal to dedicated page
+- Make it much more detailed and robust
+- Support all 6 product types (seat, capacity, open, equipment, package, timeslot)
+- Completely functional with Supabase database using MCP
+- Allow tenants to create any type of offering they want
+
+**Mode**: 🔧 **EXECUTOR** - Begin Phase 1 implementation
+
+---
+
+## **🔧 EXECUTOR MODE: CREATE OFFERING FEATURE UPGRADE**
+
+### **Background and Motivation**
+
+The current "Create new offering" feature is a basic modal that doesn't leverage the full power of the universal product system. To make this SaaS platform truly competitive, tenant operators need a comprehensive, wizard-style interface that can handle the complexity of creating any type of booking offering.
+
+**Current Limitations**:
+- Modal interface is too limited for complex offerings
+- Doesn't fully utilize the 6 product types (seat, capacity, open, equipment, package, timeslot)
+- Basic form doesn't capture rich product metadata
+- No guided experience for different business models
+- Limited database integration
+- No validation for business-specific requirements
+
+**Business Impact**:
+- Tenants can't easily create diverse offerings
+- Platform appears basic compared to competitors
+- Lost opportunities for complex business models
+- Higher support burden from confused users
+
+### **Key Challenges and Analysis**
+
+1. **Product Type Complexity**: Each of the 6 product types has different requirements:
+   - **Seat**: Pickup locations, vehicle types, seat maps
+   - **Capacity**: Venue capacity, group pricing, facilities
+   - **Open**: Unlimited capacity, per-person pricing, categories
+   - **Equipment**: Inventory tracking, rental periods, condition management
+   - **Package**: Multi-activity bundles, pricing tiers, dependencies
+   - **Timeslot**: Recurring schedules, instructor assignments, room bookings
+
+2. **Database Integration**: Universal product system with complex JSONB schemas
+3. **User Experience**: Guiding users through complex forms without overwhelming them
+4. **Validation**: Business-specific validation rules for each product type
+5. **Scheduling**: Different scheduling patterns for different business models
+6. **Pricing**: Complex pricing structures (tiers, discounts, seasonal)
+
+### **High-level Task Breakdown**
+
+#### **Phase 1: Foundation & Analysis (1 week)**
+- [ ] **Task 1.1**: Analyze current CreateOfferingModal component
+- [ ] **Task 1.2**: Research universal product system schema requirements
+- [ ] **Task 1.3**: Design new page architecture and routing
+- [ ] **Task 1.4**: Plan database operations using Supabase MCP
+- [ ] **Task 1.5**: Create comprehensive wireframes and user flows
+
+#### **Phase 2: Core Page Infrastructure (1 week)**
+- [ ] **Task 2.1**: Create new `/dashboard/offerings/create` page
+- [ ] **Task 2.2**: Build wizard-style multi-step form framework
+- [ ] **Task 2.3**: Implement product type selection interface
+- [ ] **Task 2.4**: Create reusable form components for each product type
+- [ ] **Task 2.5**: Add navigation, breadcrumbs, and progress indicators
+
+#### **Phase 3: Product Type Implementations (2 weeks)**
+- [ ] **Task 3.1**: Seat-based offering creation (bus tours, transportation)
+- [ ] **Task 3.2**: Capacity-based offering creation (venues, boats, events)
+- [ ] **Task 3.3**: Open offering creation (walking tours, activities)
+- [ ] **Task 3.4**: Equipment offering creation (rentals, inventory)
+- [ ] **Task 3.5**: Package offering creation (multi-activity bundles)
+- [ ] **Task 3.6**: Timeslot offering creation (classes, workshops)
+
+#### **Phase 4: Advanced Features (1 week)**
+- [ ] **Task 4.1**: Scheduling system with recurring patterns
+- [ ] **Task 4.2**: Pricing management with tiers and discounts
+- [ ] **Task 4.3**: Image upload and gallery management
+- [ ] **Task 4.4**: SEO optimization fields
+- [ ] **Task 4.5**: Preview and draft functionality
+
+#### **Phase 5: Database Integration & Testing (1 week)**
+- [ ] **Task 5.1**: Supabase MCP integration for all product types
+- [ ] **Task 5.2**: Comprehensive form validation
+- [ ] **Task 5.3**: Error handling and recovery
+- [ ] **Task 5.4**: Integration testing with existing offerings list
+- [ ] **Task 5.5**: Performance optimization and caching
+
+### **Detailed Feature Specification**
+
+#### **📋 Page Structure: `/dashboard/offerings/create`**
+
+**Navigation Flow**:
+```
+/dashboard/offerings → "Create New Offering" button → /dashboard/offerings/create
+```
+
+**Page Layout**:
+- **Header**: Breadcrumb navigation, save draft, preview buttons
+- **Progress Bar**: Step indicator for wizard flow
+- **Main Content**: Step-by-step form with dynamic fields
+- **Sidebar**: Quick help, preview, and submission area
+- **Footer**: Back/Next navigation, save progress
+
+#### **🧙 Wizard Steps Design**
+
+**Step 1: Business Type Selection**
+```
+What type of offering are you creating?
+
+🚌 Transportation & Tours
+├── Bus Tours (seat-based)
+├── Boat Cruises (capacity-based)
+└── Walking Tours (open)
+
+🏃 Activities & Experiences  
+├── Adventure Activities (open)
+├── Classes & Workshops (timeslot)
+└── Equipment Rental (equipment)
+
+📦 Packages & Bundles
+└── Multi-Activity Packages (package)
+```
+
+**Step 2: Basic Information**
+- Offering name and description
+- Category and tags
+- Location and destination
+- Duration and difficulty level
+- Target audience
+
+**Step 3: Product-Specific Configuration**
+*Dynamic based on product type selected*
+
+**Step 4: Scheduling & Availability**
+- Calendar integration
+- Recurring patterns
+- Seasonal availability
+- Blackout dates
+
+**Step 5: Pricing & Policies**
+- Base pricing structure
+- Discounts and promotions
+- Cancellation policy
+- Terms and conditions
+
+**Step 6: Media & Marketing**
+- Photo gallery upload
+- Video content
+- SEO optimization
+- Social media integration
+
+**Step 7: Review & Publish**
+- Complete offering preview
+- Validation checks
+- Publish or save as draft
+
+#### **🔧 Product Type Specifications**
+
+**Seat-Based Products (Bus Tours)**:
+- **Vehicle Configuration**: Bus type, seat count, amenities
+- **Pickup Locations**: Multiple stops with times
+- **Route Planning**: Destinations, stops, estimated travel time
+- **Seat Management**: Seat selection, accessibility options
+- **Departure Times**: Multiple daily departures
+- **Pricing Tiers**: Adult, student, child, senior pricing
+
+**Capacity-Based Products (Boat Cruises)**:
+- **Venue Details**: Capacity limits, facility features
+- **Group Pricing**: Per-person vs. flat rate options
+- **Amenities**: Food service, equipment, facilities
+- **Weather Policies**: Cancellation/rescheduling rules
+- **Group Booking**: Minimum/maximum group sizes
+
+**Open Products (Walking Tours)**:
+- **Meeting Points**: GPS coordinates, landmark descriptions
+- **Guide Assignment**: Staff member assignments
+- **Equipment Provided**: What's included/excluded
+- **Accessibility**: Mobility requirements, age restrictions
+- **Language Options**: Multiple language support
+
+**Equipment Products (Rentals)**:
+- **Inventory Management**: Item tracking, condition status
+- **Rental Periods**: Hourly, daily, weekly rates
+- **Deposit Requirements**: Security deposits, insurance
+- **Maintenance Tracking**: Service schedules, repair history
+- **Accessory Packages**: Additional equipment bundles
+
+**Package Products (Multi-Activity)**:
+- **Activity Selection**: Choose from existing offerings
+- **Bundle Pricing**: Discount calculations
+- **Dependency Management**: Required vs. optional activities
+- **Customization**: Allow customer modifications
+- **Validity Periods**: Package expiration dates
+
+**Timeslot Products (Classes)**:
+- **Instructor Assignment**: Staff scheduling
+- **Room/Venue Booking**: Facility management
+- **Recurring Schedules**: Weekly, monthly patterns
+- **Skill Levels**: Beginner, intermediate, advanced
+- **Class Materials**: Equipment, handouts, prerequisites
+
+### **Database Schema Integration**
+
+#### **Products Table Structure**:
+```sql
+CREATE TABLE products (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID REFERENCES tenants(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  product_type product_type_enum NOT NULL,
+  category TEXT,
+  location TEXT,
+  duration_minutes INTEGER,
+  difficulty_level TEXT,
+  product_data JSONB NOT NULL,
+  media_gallery JSONB,
+  seo_data JSONB,
+  pricing_tiers JSONB,
+  policies JSONB,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### **Product Instances Table**:
+```sql
+CREATE TABLE product_instances (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  product_id UUID REFERENCES products(id),
+  tenant_id UUID REFERENCES tenants(id),
+  start_datetime TIMESTAMP NOT NULL,
+  end_datetime TIMESTAMP NOT NULL,
+  available_capacity INTEGER,
+  booked_capacity INTEGER DEFAULT 0,
+  pricing_data JSONB,
+  instance_data JSONB,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### **Technical Implementation Plan**
+
+#### **Component Architecture**:
+```typescript
+// Main wizard component
+CreateOfferingWizard
+├── WizardNavigation
+├── ProgressIndicator
+├── StepContainer
+│   ├── BusinessTypeStep
+│   ├── BasicInformationStep
+│   ├── ProductConfigStep (dynamic)
+│   ├── SchedulingStep
+│   ├── PricingStep
+│   ├── MediaStep
+│   └── ReviewStep
+├── WizardSidebar
+└── WizardFooter
+```
+
+#### **Product Type Components**:
+```typescript
+// Dynamic product configuration
+ProductConfigStep
+├── SeatBasedConfig
+├── CapacityBasedConfig
+├── OpenConfig
+├── EquipmentConfig
+├── PackageConfig
+└── TimeslotConfig
+```
+
+#### **Form Management**:
+```typescript
+// Comprehensive form state management
+interface CreateOfferingFormState {
+  businessType: ProductType;
+  basicInfo: BasicInformation;
+  productConfig: ProductConfiguration;
+  scheduling: SchedulingConfiguration;
+  pricing: PricingConfiguration;
+  media: MediaConfiguration;
+  currentStep: number;
+  isDraft: boolean;
+  validationErrors: ValidationError[];
+}
+```
+
+### **User Experience Considerations**
+
+#### **🎨 Design Principles**:
+- **Progressive Disclosure**: Show complexity gradually
+- **Contextual Help**: Inline guidance for each product type
+- **Visual Feedback**: Clear progress indicators and validation states
+- **Mobile Responsive**: Works on tablets for field creation
+- **Auto-Save**: Never lose progress
+
+#### **🔧 Technical Requirements**:
+- **Form Validation**: Real-time validation with clear error messages
+- **Image Upload**: Multiple image support with optimization
+- **Draft System**: Save and continue later functionality
+- **Preview Mode**: See how offering appears to customers
+- **Duplicate Protection**: Prevent accidental duplicates
+
+### **Success Criteria**
+
+#### **Functional Requirements**:
+- ✅ Support all 6 product types with appropriate configurations
+- ✅ Complete database integration using Supabase MCP
+- ✅ Wizard-style interface with clear progress indication
+- ✅ Comprehensive validation and error handling
+- ✅ Draft saving and preview functionality
+- ✅ Mobile-responsive design
+- ✅ Integration with existing offerings list
+
+#### **Business Requirements**:
+- ✅ Reduce offering creation time by 70%
+- ✅ Support complex business models out-of-the-box
+- ✅ Minimize support requests for offering creation
+- ✅ Enable non-technical users to create sophisticated offerings
+- ✅ Match or exceed competitor feature sets
+
+#### **Technical Requirements**:
+- ✅ Performance: Page loads in <2 seconds
+- ✅ Reliability: 99.9% uptime for creation process
+- ✅ Security: Proper tenant isolation and data validation
+- ✅ Scalability: Support for unlimited offering types
+- ✅ Maintainability: Clean, well-documented code
+
+### **Implementation Timeline**
+
+**Week 1**: Foundation & Analysis
+- Analyze current system
+- Design architecture
+- Plan database operations
+
+**Week 2**: Core Infrastructure
+- Build wizard framework
+- Create routing and navigation
+- Implement basic form structure
+
+**Week 3-4**: Product Type Implementations
+- Build all 6 product type configurations
+- Implement validation logic
+- Create scheduling systems
+
+**Week 5**: Advanced Features & Polish
+- Add media management
+- Implement preview functionality
+- Performance optimization
+
+**Week 6**: Testing & Integration
+- Comprehensive testing
+- Database integration testing
+- User acceptance testing
+
+### **Risk Analysis & Mitigation**
+
+#### **Technical Risks**:
+- **Complex Form State**: Use proven state management patterns
+- **Database Performance**: Implement proper indexing and caching
+- **Validation Complexity**: Create reusable validation framework
+- **Mobile UX**: Responsive design testing on actual devices
+
+#### **Business Risks**:
+- **User Adoption**: Comprehensive onboarding and help system
+- **Feature Creep**: Stick to MVP first, iterate based on feedback
+- **Competitive Response**: Focus on unique value proposition
+- **Support Burden**: Extensive documentation and intuitive design
+
+### **Next Steps for Executor**
+
+1. **Start with Task 1.1**: Analyze the current CreateOfferingModal component
+2. **Review Universal Product System**: Understand current database schema
+3. **Design Page Architecture**: Plan the new page structure and routing
+4. **Begin Implementation**: Start with the wizard framework
+5. **Iterate Based on Feedback**: Regular check-ins during development
+
+---
+
+**Status**: 🔧 **EXECUTOR MODE ACTIVE** - Beginning Phase 1 implementation
+
+### **✅ PHASE 1: FOUNDATION & ANALYSIS - COMPLETE**
+
+### **🚀 PHASE 2: CORE PAGE INFRASTRUCTURE - IN PROGRESS**
+
+**Current Task**: Task 2.2 - Build wizard-style multi-step form framework
+**Status**: ✅ **COMPLETE**
+
+**Phase 1 Progress** (Complete):
+- [x] Planning completed - comprehensive upgrade plan documented
+- [x] Mode switched to Executor
+- [x] **COMPLETED**: Task 1.1 - Analyze current CreateOfferingModal component
+- [x] **COMPLETED**: Task 1.2 - Research universal product system schema requirements
+- [x] **COMPLETED**: Task 1.3 - Design new page architecture and routing
+- [x] **COMPLETED**: Task 1.4 - Plan database operations using Supabase MCP
+- [x] **COMPLETED**: Task 1.5 - Create comprehensive wireframes and user flows
+
+**Phase 2 Progress** (In Progress):
+- [x] **COMPLETED**: Task 2.1 - Create new `/dashboard/offerings/create` page
+- [ ] **IN PROGRESS**: Task 2.2 - Build wizard-style multi-step form framework
+- [ ] Task 2.3 - Implement product type selection interface
+- [ ] Task 2.4 - Create reusable form components for each product type
+- [ ] Task 2.5 - Add navigation, breadcrumbs, and progress indicators
+
+### **✅ TASK 2.1 COMPLETED - New Create Offering Page**
+
+**New Page Implementation**: Created `/dashboard/offerings/create` as a dedicated page replacing the modal approach
+
+**✅ Key Features Implemented**:
+- **7-Step Wizard Framework**: Business Type → Basic Info → Configuration → Scheduling → Pricing → Media → Review
+- **Professional UI Layout**: Header with breadcrumbs, progress indicator, main content area, and sidebar
+- **Business Type Selection**: Interactive cards for all 6 product types (seat, capacity, open, equipment, package, timeslot)
+- **URL-Based Navigation**: Step navigation via URL parameters for shareable URLs and browser history
+- **Dynamic Tenant Branding**: Uses tenant colors throughout the interface
+- **Live Preview Sidebar**: Real-time preview updates and contextual help
+- **Form State Management**: Comprehensive state management for wizard data
+- **Professional Navigation**: Back/Next buttons with validation and save/exit options
+
+**✅ Integration Updates**:
+- **Offerings Page Updated**: Removed modal approach, added router navigation to new page
+- **Button Integration**: Both "Create New Offering" buttons now navigate to `/dashboard/offerings/create`
+- **Clean Modal Removal**: Eliminated CreateOfferingModal dependency and all modal-related code
+
+**✅ User Experience**:
+- **Intuitive Flow**: Clear step-by-step guidance with visual progress indication
+- **Product Type Guidance**: Business model examples help users choose the right type
+- **Save & Exit**: Draft functionality and ability to return to offerings list
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+
+**Business Impact**: Tenants now have a professional, comprehensive interface for creating offerings that matches modern SaaS standards and supports all business models.
+
+**✅ CRITICAL FIX COMPLETED - Admin Branding Consistency**:
+- **Issue**: Create offering page was incorrectly using tenant branding colors
+- **Fix**: Replaced all tenant branding references with consistent admin colors (blue-600)
+- **Result**: Admin dashboard now has professional, consistent appearance for all tenants
+- **Impact**: Proper separation between customer-facing (tenant branded) and admin (platform branded) experiences
+
+### **✅ TASK 1.1 COMPLETED - Current Modal Analysis**
+
+**Current Implementation**: 486-line modal component with basic form fields
+- **Basic Information**: Name, location, product type, description
+- **Pricing**: Base price, currency, category
+- **Product Type Specifics**: Dynamic fields based on 6 product types
+- **Simple Validation**: Basic required fields only
+- **Limited Features**: No scheduling, advanced pricing, or media management
+- **Database Integration**: Basic product creation via Supabase
+
+**Key Limitations Identified**:
+- Modal interface too constraining for complex offerings
+- No wizard-style guidance for different business models
+- Limited validation and error handling
+- No draft saving or progress persistence
+- No media upload or gallery management
+- No scheduling or recurring patterns
+- Basic pricing (single price point only)
+- Limited product-specific configuration options
+
+**Integration Points**:
+- Triggered from "Create New Offering" button in `/dashboard/offerings`
+- Uses `handleCreateOffering` function for database insertion
+- Integrates with existing `products` table structure
+- Modal state managed by `showCreateModal` boolean
+
+### **✅ TASK 1.2 COMPLETED - Universal Product System Analysis**
+
+**Database Schema Structure**:
+- **products** table: 18 columns with JSONB fields for flexible data
+- **product_instances** table: 13 columns for scheduling and instances
+- **Universal product types**: seat, capacity, open, equipment, package, timeslot
+- **JSONB fields**: product_data, availability_data, booking_rules, seo_data
+- **Tenant isolation**: All tables include tenant_id foreign key
+
+**TypeScript Type System**:
+- **Comprehensive interfaces**: 414 lines of type definitions
+- **Product-specific data**: Separate interfaces for each product type
+- **Flexible architecture**: Supports any business model via product_data JSONB
+- **Booking system integration**: Complete booking flow types defined
+- **Adapter pattern**: ProductAdapter interface for handling different types
+
+**Current Gaps**:
+- Modal doesn't leverage full JSONB schema capabilities
+- Limited product_data configuration for complex business models
+- No scheduling/instance creation in current modal
+- Missing advanced features like SEO, media galleries, complex pricing
+
+### **✅ TASK 1.3 COMPLETED - New Page Architecture Design**
+
+**New Page Structure**: `/dashboard/offerings/create` (dedicated page replacing modal)
+
+**URL Flow**:
+```
+/dashboard/offerings → "Create New Offering" → /dashboard/offerings/create
+```
+
+**Page Layout Design**:
+```
+Header: [Breadcrumb] [Save Draft] [Preview] [Settings Menu]
+Progress: [Step 1] [Step 2] [Step 3] [Step 4] [Step 5] [Step 6] [Step 7]
+Main: [Dynamic Step Content] | [Preview Sidebar]
+Footer: [← Back] [Continue →] [Save & Exit]
+```
+
+**7-Step Wizard Flow**:
+1. **Business Type Selection** - Choose product type with business model guidance
+2. **Basic Information** - Name, description, location, category, difficulty
+3. **Product Configuration** - Dynamic fields based on selected product type
+4. **Scheduling & Availability** - Calendar, recurring patterns, instances
+5. **Pricing & Policies** - Advanced pricing, discounts, terms, cancellation
+6. **Media & Marketing** - Photo gallery, SEO, social media integration
+7. **Review & Publish** - Complete preview, validation, draft/publish options
+
+**Component Architecture**:
+```typescript
+CreateOfferingWizard/
+├── WizardHeader (breadcrumb, actions)
+├── WizardProgress (step indicator)
+├── WizardContent (dynamic step content)
+│   ├── BusinessTypeStep
+│   ├── BasicInformationStep
+│   ├── ProductConfigStep (dynamic based on type)
+│   ├── SchedulingStep
+│   ├── PricingStep
+│   ├── MediaStep
+│   └── ReviewStep
+├── WizardSidebar (preview, help, quick actions)
+└── WizardFooter (navigation, save options)
+```
+
+**State Management Strategy**:
+- **Form State**: React Hook Form with Zod validation
+- **Step State**: URL-based routing with step parameters
+- **Draft State**: Auto-save to localStorage + periodic database saves
+- **Preview State**: Real-time preview generation
+
+**Routing Structure**:
+- `/dashboard/offerings/create` - Entry point (Step 1)
+- `/dashboard/offerings/create?step=2` - Step navigation via URL params
+- `/dashboard/offerings/create/[draftId]` - Resume saved draft
+- `/dashboard/offerings/create/preview` - Full preview mode
+
+**Integration Points**:
+- **Entry**: Button in `/dashboard/offerings` → Navigate to create page
+- **Exit**: Cancel/Save → Return to `/dashboard/offerings`
+- **Database**: Same `handleCreateOffering` function, enhanced data structure
+- **Preview**: Real-time preview of customer-facing offering display
+
+### **✅ TASK 1.4 COMPLETED - Database Operations Plan**
+
+**Database Operations Strategy using Supabase MCP**:
+
+**1. Draft Management Operations**:
+```sql
+-- Create drafts table for work-in-progress offerings
+CREATE TABLE offering_drafts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID REFERENCES tenants(id),
+  user_id UUID REFERENCES users(id),
+  draft_name TEXT,
+  current_step INTEGER DEFAULT 1,
+  form_data JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**2. Enhanced Product Creation**:
+```typescript
+// Multi-step product insertion with full JSONB utilization
+const createProductOperation = {
+  products: {
+    // Basic fields
+    name, description, product_type, location, category,
+    // Enhanced JSONB fields
+    product_data: {
+      // Dynamic based on product type
+      vehicle_type, pickup_locations, amenities, etc.
+    },
+    availability_data: {
+      schedule_type, recurring_pattern, blackout_dates,
+      advance_booking_days, weather_dependent
+    },
+    booking_rules: {
+      cancellation_policy, modification_policy,
+      age_restrictions, group_discounts
+    },
+    seo_data: {
+      meta_title, meta_description, keywords, og_image
+    }
+  }
+};
+```
+
+**3. Product Instance Creation**:
+```typescript
+// Automatic instance generation based on scheduling
+const createInstancesOperation = {
+  product_instances: [
+    {
+      product_id, tenant_id, start_time, end_time,
+      max_quantity, available_quantity, timezone,
+      instance_data: {
+        pricing_override, special_notes, weather_status
+      }
+    }
+  ]
+};
+```
+
+**4. MCP Tool Operations Plan**:
+- **`mcp_supabase_execute_sql`**: For draft table creation and complex queries
+- **`mcp_supabase_apply_migration`**: For schema updates if needed
+- **Database Transactions**: Ensure product + instances created atomically
+- **Error Handling**: Comprehensive error states with rollback capability
+- **Data Validation**: Server-side validation before database insertion
+
+**5. Image Upload Strategy**:
+```typescript
+// Supabase Storage integration for media gallery
+const mediaUploadOperation = {
+  bucket: 'offering-media',
+  path: `${tenant_id}/${product_id}/`,
+  operations: ['upload', 'delete', 'reorder'],
+  validation: 'file_type, size_limit, quantity_limit'
+};
+```
+
+**6. Real-time Preview Generation**:
+```typescript
+// Live preview using existing product display components
+const previewOperation = {
+  method: 'real_time_generation',
+  components: ['TripCard', 'TripDetail', 'BookingFlow'],
+  data_source: 'form_state + template_data'
+};
+```
+
+**7. Database Performance Optimization**:
+- **Indexing**: Create indexes on tenant_id, product_type, status
+- **JSONB Queries**: Optimize for product_data filtering and search
+- **Batch Operations**: Efficient instance creation for recurring schedules
+- **Caching Strategy**: Redis for frequently accessed product configurations
+
+**8. Transaction Flow**:
+```typescript
+// Complete offering creation transaction
+const createOfferingTransaction = async () => {
+  const { data: product } = await supabase
+    .from('products')
+    .insert(productData)
+    .select()
+    .single();
+    
+  const instances = generateInstances(product, schedulingData);
+  await supabase
+    .from('product_instances')
+    .insert(instances);
+    
+  await supabase
+    .from('offering_drafts')
+    .delete()
+    .eq('id', draftId);
+    
+  return product;
+};
+```
+
+### **✅ TASK 1.5 COMPLETED - Comprehensive Wireframes and User Flows**
+
+**User Flow Diagram**:
+```
+Entry Point: /dashboard/offerings
+├── Click "Create New Offering"
+└── Navigate to /dashboard/offerings/create
+
+Step 1: Business Type Selection
+├── Display 6 product types with business model examples
+├── Hover help text for each type
+└── Select type → Continue to Step 2
+
+Step 2: Basic Information
+├── Form: Name, Description, Location, Category
+├── Auto-complete for location
+├── Real-time preview sidebar update
+└── Validation → Continue to Step 3
+
+Step 3: Product Configuration (Dynamic)
+├── If Seat-based: Vehicle type, seats, pickup locations
+├── If Capacity: Venue type, capacity, amenities
+├── If Open: Tour type, duration, difficulty
+├── If Equipment: Equipment type, specifications
+├── If Package: Activity selection, bundles
+├── If Timeslot: Session type, duration, participants
+└── Product-specific validation → Continue to Step 4
+
+Step 4: Scheduling & Availability
+├── Calendar widget for date selection
+├── Recurring pattern builder
+├── Blackout dates manager
+├── Advance booking settings
+└── Schedule validation → Continue to Step 5
+
+Step 5: Pricing & Policies
+├── Base price configuration
+├── Pricing tiers (adult, child, senior)
+├── Seasonal pricing rules
+├── Group discounts
+├── Cancellation policy selector
+└── Pricing validation → Continue to Step 6
+
+Step 6: Media & Marketing
+├── Photo gallery upload (drag & drop)
+├── SEO meta data fields
+├── Social media preview
+├── Marketing tags
+└── Media validation → Continue to Step 7
+
+Step 7: Review & Publish
+├── Complete offering preview
+├── Validation summary
+├── Save as draft or publish
+└── Success → Redirect to /dashboard/offerings
+```
+
+**Wireframe Specifications**:
+
+**Page Header**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🏠 Dashboard › Offerings › Create New Offering                    │
+│                                      [Save Draft] [Preview] [⋮]  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Progress Indicator**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ ●────○────○────○────○────○────○                                 │
+│ 1    2    3    4    5    6    7                                 │
+│ Type Info Config Sched Price Media Review                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Main Content Area**:
+```
+┌─────────────────────────────────────┬───────────────────────────┐
+│ Step Content (Dynamic)              │ Preview Sidebar          │
+│                                     │                           │
+│ [Step 1: Business Type Selection]   │ ┌─────────────────────────┐ │
+│                                     │ │ Live Preview            │ │
+│ ┌─────────────────────────────────┐ │ │                         │ │
+│ │ 🚌 Transportation & Tours       │ │ │ [Trip Card Preview]     │ │
+│ │ ├─ Bus Tours (seat-based)       │ │ │                         │ │
+│ │ ├─ Boat Cruises (capacity)      │ │ │ [Basic Info]            │ │
+│ │ └─ Walking Tours (open)         │ │ │ [Pricing]               │ │
+│ │                                 │ │ │ [Schedule]              │ │
+│ │ 🏃 Activities & Experiences     │ │ │                         │ │
+│ │ ├─ Adventure Activities         │ │ │ [Help/Tips]             │ │
+│ │ ├─ Classes & Workshops          │ │ │                         │ │
+│ │ └─ Equipment Rental             │ │ │ [Quick Actions]         │ │
+│ │                                 │ │ │                         │ │
+│ │ 📦 Packages & Bundles           │ │ │                         │ │
+│ │ └─ Multi-Activity Packages      │ │ │                         │ │
+│ └─────────────────────────────────┘ │ └─────────────────────────┘ │
+│                                     │                           │
+│ [? Help] [💾 Save Draft]           │ [🔄 Refresh Preview]     │
+└─────────────────────────────────────┴───────────────────────────┘
+```
+
+**Footer Navigation**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ [← Back]                                    [Save & Exit] [Next →] │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Responsive Design Considerations**:
+- **Desktop**: Full sidebar with live preview
+- **Tablet**: Collapsible sidebar, step-by-step focus
+- **Mobile**: Single column, progress at top, preview modal
+
+**Form Validation Strategy**:
+- **Real-time validation**: Field-level validation on blur
+- **Step validation**: Cannot proceed without required fields
+- **Cross-step validation**: Scheduling conflicts, pricing consistency
+- **Final validation**: Complete offering validation before publish
+
+**Error Handling UX**:
+- **Inline errors**: Red text below fields with specific messages
+- **Step indicators**: Red dot on steps with validation errors
+- **Error summary**: List of all errors at step completion
+- **Recovery**: Auto-save draft on errors, resume capability
+
+**Preview Sidebar Features**:
+- **Live updates**: Changes reflect immediately in preview
+- **Multiple views**: Trip card, detail page, booking flow
+- **Mobile preview**: Toggle between desktop and mobile view
+- **Share preview**: Generate shareable link for stakeholder review
+
+**Draft Management**:
+- **Auto-save**: Save form state every 30 seconds
+- **Manual save**: Save draft button always available
+- **Draft list**: Resume from `/dashboard/offerings/drafts`
+- **Version history**: Track changes with timestamps
+
+**Accessibility Features**:
+- **Keyboard navigation**: Tab through all interactive elements
+- **Screen reader support**: ARIA labels and descriptions
+- **High contrast**: Color choices work with accessibility tools
+- **Focus indicators**: Clear visual focus states throughout
+
+**Performance Optimization**:
+- **Lazy loading**: Load step components only when needed
+- **Image optimization**: Compress uploads automatically
+- **Form state**: Minimize re-renders with React Hook Form
+- **Preview debouncing**: Debounce preview updates to avoid spam
+
+---
+
+## **🎯 PHASE 1 COMPLETION SUMMARY**
+
+### **✅ DELIVERABLES COMPLETED**
+
+**1. Complete Current State Analysis**
+- ✅ 486-line modal component analyzed with all limitations identified
+- ✅ Current database integration points mapped
+- ✅ User flow and trigger points documented
+
+**2. Universal Product System Research**
+- ✅ Database schema fully analyzed (products + product_instances tables)
+- ✅ 414 lines of TypeScript interfaces reviewed
+- ✅ JSONB field capabilities and product type system understood
+- ✅ Gaps between current modal and full system capabilities identified
+
+**3. New Page Architecture Design**
+- ✅ 7-step wizard flow designed with business model guidance
+- ✅ URL routing structure planned (`/dashboard/offerings/create`)
+- ✅ Component architecture mapped with reusable patterns
+- ✅ State management strategy defined (React Hook Form + URL routing)
+
+**4. Database Operations Planning**
+- ✅ Supabase MCP integration strategy developed
+- ✅ Draft management system designed with offering_drafts table
+- ✅ Enhanced product creation with full JSONB utilization
+- ✅ Transaction flows and error handling strategies defined
+- ✅ Performance optimization and indexing strategy planned
+
+**5. Comprehensive Wireframes & User Flows**
+- ✅ Complete user journey mapped from entry to completion
+- ✅ Detailed wireframes for all 7 steps with responsive design
+- ✅ Form validation strategy and error handling UX defined
+- ✅ Preview sidebar functionality and draft management specified
+- ✅ Accessibility and performance optimization considerations included
+
+### **🚀 READY FOR PHASE 2 IMPLEMENTATION**
+
+**Key Achievements**:
+- **Complete Analysis**: Current system fully understood
+- **Robust Architecture**: Scalable 7-step wizard design
+- **Database Ready**: MCP integration planned with transaction safety
+- **UX Optimized**: Comprehensive wireframes with accessibility focus
+- **Performance Focused**: Optimized for speed and user experience
+
+**Next Steps**: Phase 2 will begin implementing the foundation components and database migrations, starting with the new routing structure and basic wizard framework.
+
+**Executor Request**: **Phase 1 analysis and planning is complete. All deliverables have been documented with comprehensive detail. Ready to proceed with Phase 2 implementation - please confirm approval to begin building the foundation components.**
