@@ -1,14 +1,28 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Bell, Search, Menu, LogOut, ArrowLeft, Eye, MoreVertical } from 'lucide-react';
+import { Bell, Search, Menu, LogOut, ArrowLeft, Eye, MoreVertical, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useTenant } from '@/lib/tenant-context';
+import { useAuth } from '@/lib/auth-context';
 import { GeistSans } from 'geist/font/sans';
+import { useState } from 'react';
 
-export default function TenantAdminHeader() {
+interface TenantProps {
+  tenant?: {
+    id: string;
+    name: string;
+    branding?: {
+      primary_color?: string;
+      secondary_color?: string;
+      logo_url?: string;
+    };
+  } | null;
+}
+
+export default function TenantAdminHeader({ tenant }: TenantProps) {
   const pathname = usePathname();
-  const { tenant } = useTenant();
+  const { signOut } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Generate breadcrumb from pathname
   const pathSegments = pathname.split('/').filter(Boolean);
@@ -17,6 +31,24 @@ export default function TenantAdminHeader() {
     const name = segment.charAt(0).toUpperCase() + segment.slice(1);
     return { name, href, current: index === pathSegments.length - 1 };
   });
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      // Redirect to login page after successful sign out
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Show error message to user
+      alert('Failed to sign out. Please try again.');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <header className={`bg-white shadow-sm border-b border-gray-200 ${GeistSans.className}`}>
@@ -88,9 +120,17 @@ export default function TenantAdminHeader() {
           </div>
 
           {/* Sign Out */}
-          <button className="flex items-center px-3 py-2 text-sm text-red-600 hover:text-red-800 border border-red-300 rounded-md hover:bg-red-50 transition-colors">
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+          <button 
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="flex items-center px-3 py-2 text-sm text-red-600 hover:text-red-800 border border-red-300 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSigningOut ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <LogOut className="w-4 h-4 mr-2" />
+            )}
+            {isSigningOut ? 'Signing Out...' : 'Sign Out'}
           </button>
         </div>
       </div>

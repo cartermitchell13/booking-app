@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { useTenant } from './tenant-context';
 
 interface AuthUser {
   id: string;
@@ -63,7 +62,6 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { tenant } = useTenant();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,84 +146,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Get user data (we'll handle tenant context elsewhere)
     const userData = await fetchUserData(authData.user);
     if (!userData) {
-      await supabase.auth.signOut();
-      throw new Error('Account not found. Please check your email or contact support.');
+      throw new Error('User account not found');
     }
+
+    // The user and session will be set by the auth state change listener
   }, [fetchUserData]);
 
   const signUp = useCallback(async (
-    email: string, 
-    password: string, 
+    email: string,
+    password: string,
     userData: { firstName: string; lastName: string; phone?: string; role?: 'customer' | 'tenant_admin' }
   ) => {
-    if (!supabase || !tenant?.id) {
+    if (!supabase) {
       throw new Error('Authentication service is not configured');
     }
-
-    // For mock tenant ID, use the real ParkBus tenant ID (same as tenant context logic)
-    const actualTenantId = tenant.id === 'mock-parkbus-id' 
-      ? '20ee5f83-1019-46c7-9382-05a6f1ded9bf' 
-      : tenant.id;
-
-    console.log('SignUp: Using actual tenant ID:', actualTenantId, 'for tenant:', tenant.name);
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          phone: userData.phone,
-          tenant_id: actualTenantId
-        }
-      }
     });
 
     if (authError) {
-      console.error('Auth signup error:', authError);
       throw authError;
     }
 
     if (!authData.user) {
-      throw new Error('Registration failed');
+      throw new Error('Sign up failed');
     }
-
-    console.log('Auth user created successfully:', authData.user.id);
 
     // Create user record in our users table
-    const { error: userError } = await supabase
-      .from('users')
-      .insert({
+    const { error: profileError } = await supabase.from('users').insert([
+      {
         id: authData.user.id,
-        tenant_id: actualTenantId,
-        email: email,
+        email: authData.user.email,
         first_name: userData.firstName,
         last_name: userData.lastName,
-        phone: userData.phone || null,
+        phone: userData.phone,
         role: userData.role || 'customer',
-        email_verified: false
-      });
+        tenant_id: null, // This will be set based on registration flow
+        email_verified: false,
+      },
+    ]);
 
-    if (userError) {
-      console.error('User creation error:', userError);
-      // Try to clean up the auth user if our user creation failed
-      if (authData.user) {
-        console.log('Attempting to clean up auth user due to user table error');
-        await supabase.auth.admin.deleteUser(authData.user.id);
-      }
-      throw new Error(`Failed to create user profile: ${userError.message}`);
+    if (profileError) {
+      throw profileError;
     }
-
-    console.log('User profile created successfully in users table');
-  }, [tenant?.id]);
+  }, []);
 
   const signOut = useCallback(async () => {
-    if (!supabase) return;
-    
+    if (!supabase) {
+      throw new Error('Authentication service is not configured');
+    }
+
     const { error } = await supabase.auth.signOut();
+
     if (error) {
-      console.error('Sign out error:', error);
       throw error;
     }
   }, []);

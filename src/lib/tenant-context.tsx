@@ -1,15 +1,18 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Tenant, TenantContextType } from '@/types';
+import { Tenant, TenantContextType, EnhancedTenantContextType, TenantDetectionMethod } from '@/types';
 import { supabase } from './supabase';
 import { getContrastingTextColor } from './utils';
 import { usePathname } from 'next/navigation';
+import { getRouteClassification, getTenantDetectionMethod } from './route-classification';
 
-const TenantContext = createContext<TenantContextType>({
+const TenantContext = createContext<EnhancedTenantContextType>({
   tenant: null,
   isLoading: true,
   error: undefined,
+  detectionMethod: undefined,
+  routeType: undefined,
 });
 
 export const useTenant = () => {
@@ -29,7 +32,12 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
   const [tenant, setTenant] = useState<Tenant | null>(initialTenant || null);
   const [isLoading, setIsLoading] = useState(!initialTenant);
   const [error, setError] = useState<string>();
+  const [detectionMethod, setDetectionMethod] = useState<TenantDetectionMethod>();
   const pathname = usePathname();
+
+  // Get route classification for current path
+  const routeClassification = getRouteClassification(pathname);
+  const requiredDetectionMethod = getTenantDetectionMethod(pathname);
 
   // Get mock tenant data for development
   const getMockTenantData = useCallback((slug: string): Tenant => {
@@ -97,9 +105,68 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
     };
   }, []);
 
-  // Detect tenant from current domain/subdomain with middleware header support
-  const detectTenant = useCallback(async (): Promise<Tenant | null> => {
+  // Auth-based tenant detection for admin routes
+  const detectTenantFromAuth = useCallback(async (): Promise<Tenant | null> => {
     try {
+      console.log('[TenantContext] Using auth-based tenant detection');
+      
+      // Get current user from auth
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error('[TenantContext] Auth error:', authError);
+        return null;
+      }
+      
+      if (!user) {
+        console.log('[TenantContext] No authenticated user found');
+        return null;
+      }
+      
+      // Get user data from users table to get tenant_id
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (userError) {
+        console.error('[TenantContext] User data error:', userError);
+        return null;
+      }
+      
+      if (!userData?.tenant_id) {
+        console.log('[TenantContext] User has no tenant_id');
+        return null;
+      }
+      
+      // Get tenant data by ID
+      const { data: tenantData, error: tenantError } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', userData.tenant_id)
+        .single();
+      
+      if (tenantError) {
+        console.error('[TenantContext] Tenant data error:', tenantError);
+        // Fallback to mock data for development
+        return getMockTenantData('parkbus');
+      }
+      
+      console.log('[TenantContext] Found tenant via auth:', tenantData.name);
+      return tenantData;
+      
+    } catch (error) {
+      console.error('[TenantContext] Auth-based detection error:', error);
+      return null;
+    }
+  }, [getMockTenantData]);
+
+  // Detect tenant from current domain/subdomain with middleware header support
+  const detectTenantFromDomain = useCallback(async (): Promise<Tenant | null> => {
+    try {
+      console.log('[TenantContext] Using domain-based tenant detection');
+      
       // Get hostname without port number
       const hostname = window.location.hostname;
       
@@ -236,9 +303,29 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
     }
   }, [getMockTenantData]);
 
+  // Main tenant detection method that chooses between domain and auth based on route
+  const detectTenant = useCallback(async (): Promise<Tenant | null> => {
+    const detectionMethod = requiredDetectionMethod;
+    
+    console.log(`[TenantContext] Route classification:`, {
+      pathname,
+      routeType: routeClassification.type,
+      detectionMethod,
+      requiresAuth: routeClassification.requiresAuth
+    });
+
+    setDetectionMethod(detectionMethod);
+
+    if (detectionMethod === 'auth') {
+      return detectTenantFromAuth();
+    } else {
+      return detectTenantFromDomain();
+    }
+  }, [pathname, routeClassification, requiredDetectionMethod, detectTenantFromAuth, detectTenantFromDomain]);
+
   // Load tenant on mount and on path change
   useEffect(() => {
-    if (!initialTenant) {
+    if (!initialTenant && !tenant) {
       const loadTenant = async () => {
         setIsLoading(true);
         setError(undefined);
@@ -253,11 +340,34 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
           // Small delay to ensure everything is initialized
           await new Promise(resolve => setTimeout(resolve, 100));
           
-          const detectedTenant = await detectTenant();
+          // Inline tenant detection to avoid dependency issues
+          const detectionMethod = requiredDetectionMethod;
+          let detectedTenant: Tenant | null = null;
+          
+          console.log(`[TenantContext] Route classification:`, {
+            pathname,
+            routeType: routeClassification.type,
+            detectionMethod,
+            requiresAuth: routeClassification.requiresAuth
+          });
+
+          setDetectionMethod(detectionMethod);
+
+          if (detectionMethod === 'auth') {
+            detectedTenant = await detectTenantFromAuth();
+          } else {
+            detectedTenant = await detectTenantFromDomain();
+          }
+          
           if (detectedTenant) {
             setTenant(detectedTenant);
           } else {
-            setError('Tenant not found for this domain');
+            // Only set error for admin routes that require tenant
+            if (routeClassification.type === 'admin') {
+              setError('Please log in to access the dashboard');
+            } else {
+              setError('Tenant not found for this domain');
+            }
           }
         } catch (err) {
           console.error('[TenantContext] Error loading tenant:', err);
@@ -269,7 +379,7 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
 
       loadTenant();
     }
-  }, [initialTenant, detectTenant]); // Remove pathname dependency to prevent reloading on navigation
+  }, [initialTenant, tenant, pathname, routeClassification.type, requiredDetectionMethod, detectTenantFromAuth, detectTenantFromDomain]); // Include all dependencies
 
   // Switch tenant (for super admin use)
   const switchTenant = async (tenantId: string) => {
@@ -313,10 +423,12 @@ export function TenantProvider({ children, initialTenant }: TenantProviderProps)
     }
   }, [tenant]);
 
-  const value: TenantContextType = {
+  const value: EnhancedTenantContextType = {
     tenant,
     isLoading,
     error,
+    detectionMethod,
+    routeType: routeClassification.type,
     switchTenant,
     refreshTenant,
   };

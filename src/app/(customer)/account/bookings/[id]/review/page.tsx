@@ -1,12 +1,24 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useTenantBranding, useTenantSupabase } from '@/lib/tenant-context';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageLoading } from '@/components/ui';
 // We'll need a star rating component. We can create a simple one for now.
 // import { StarRating } from '@/components/ui/star-rating'; 
+
+interface BookingData {
+  id: string;
+  booking_reference: string;
+  product_id: string;
+  products: {
+    id: string;
+    name: string;
+    description: string;
+  };
+}
 
 export default function LeaveReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { user } = useAuth();
@@ -17,15 +29,65 @@ export default function LeaveReviewPage({ params }: { params: Promise<{ id: stri
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [booking, setBooking] = useState<BookingData | null>(null);
+  const [isLoadingBooking, setIsLoadingBooking] = useState(true);
 
   // Unwrap the async params using React.use()
   const resolvedParams = use(params);
   const bookingId = resolvedParams.id;
 
-  // In a real app, you'd fetch the booking here and verify:
-  // 1. The booking belongs to the current user.
-  // 2. The trip associated with the booking has been completed.
-  // 3. A review for this booking hasn't already been submitted.
+  // Fetch booking details
+  useEffect(() => {
+    const fetchBooking = async () => {
+      if (!user || !supabase) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            booking_reference,
+            product_id,
+            products (
+              id,
+              name,
+              description
+            )
+          `)
+          .eq('id', bookingId)
+          .eq('user_id', user.id) // Ensure booking belongs to current user
+          .single();
+
+        if (error) throw error;
+        
+        // Handle the case where products is an array (even for single booking)
+        if (data && Array.isArray(data.products) && data.products.length > 0) {
+          setBooking({
+            id: data.id,
+            booking_reference: data.booking_reference,
+            product_id: data.product_id,
+            products: data.products[0]
+          });
+        } else if (data && data.products && !Array.isArray(data.products)) {
+          setBooking({
+            id: data.id,
+            booking_reference: data.booking_reference,
+            product_id: data.product_id,
+            products: data.products
+          });
+        } else {
+          throw new Error('No product information found for this booking');
+        }
+      } catch (error) {
+        console.error('Error fetching booking:', error);
+        setError('Unable to load booking details. Please try again.');
+      } finally {
+        setIsLoadingBooking(false);
+      }
+    };
+
+    fetchBooking();
+  }, [user, supabase, bookingId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,20 +96,23 @@ export default function LeaveReviewPage({ params }: { params: Promise<{ id: stri
       return;
     }
 
+    if (!booking) {
+      setError('Booking information is not available. Please try again.');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
     setSuccess(false);
 
     try {
-      // You would get trip_id and reviewer_name from the booking details
+      // Use actual booking details - let's try without trip_id first
       const { data, error } = await supabase.from('reviews').insert({
         booking_id: bookingId,
         user_id: user.id,
         rating,
         review_text: reviewText,
-        // These would come from the booking/user object
-        trip_id: 'f8a4e3a0-4c3e-4b2a-8a1e-8e3f4e2a1c7a', // Placeholder
-        reviewer_name: user.email || 'Anonymous', // Placeholder
+        reviewer_name: user.email || 'Anonymous',
       });
 
       if (error) throw error;
@@ -86,6 +151,44 @@ export default function LeaveReviewPage({ params }: { params: Promise<{ id: stri
     );
   };
 
+
+  if (isLoadingBooking) {
+    return <PageLoading message="Loading booking details..." />;
+  }
+
+  if (error && !booking) {
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: branding.background_color || '#faf9f6' }}>
+        <div className="container mx-auto py-12">
+          <Card className="p-8 text-center max-w-2xl mx-auto">
+            <h2 
+              className="text-2xl font-bold mb-4"
+              style={{ 
+                color: branding.textOnBackground,
+                fontFamily: `var(--tenant-font, 'Inter')`
+              }}
+            >
+              Unable to Load Booking
+            </h2>
+            <p style={{ color: branding.textOnBackground, marginBottom: '1rem' }}>
+              {error}
+            </p>
+            <Button 
+              onClick={() => window.history.back()}
+              style={{
+                backgroundColor: branding.primary_color,
+                borderColor: branding.primary_color,
+                color: branding.getOptimalTextColor(branding.primary_color),
+                fontFamily: `var(--tenant-font, 'Inter')`
+              }}
+            >
+              Go Back
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -127,7 +230,7 @@ export default function LeaveReviewPage({ params }: { params: Promise<{ id: stri
             className="mb-6"
             style={{ color: branding.textOnBackground }}
           >
-            Share your experience for booking #{bookingId}
+            Share your experience for {booking?.products?.name || 'your trip'}
           </p>
 
           <form onSubmit={handleSubmit}>

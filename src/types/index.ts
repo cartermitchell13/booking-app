@@ -266,4 +266,36 @@ export type {
   CalendarConfig,
   CalendarNavigation,
   DateRangeSelectionState
-} from './calendar'; 
+} from './calendar';
+
+// ===== ROUTE CLASSIFICATION TYPES =====
+
+export type RouteType = 'customer' | 'admin' | 'platform';
+
+export interface RouteClassification {
+  type: RouteType;
+  requiresAuth: boolean;
+  tenantDetectionMethod: 'domain' | 'auth' | 'none';
+}
+
+export type TenantDetectionMethod = 'domain' | 'auth';
+
+export interface TenantDetectionConfig {
+  method: TenantDetectionMethod;
+  fallback?: TenantDetectionMethod;
+}
+
+// Enhanced TenantContextType with detection method info
+export interface EnhancedTenantContextType extends TenantContextType {
+  detectionMethod?: TenantDetectionMethod;
+  routeType?: RouteType;
+}
+
+// Route classification helper types
+export interface RouteClassificationHelpers {
+  isCustomerRoute: (pathname: string) => boolean;
+  isAdminRoute: (pathname: string) => boolean;
+  isPlatformRoute: (pathname: string) => boolean;
+  getRouteClassification: (pathname: string) => RouteClassification;
+  getTenantDetectionMethod: (pathname: string) => TenantDetectionMethod;
+} 
