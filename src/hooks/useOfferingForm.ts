@@ -305,14 +305,7 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
           stepErrors.push('At least one image is required');
           isValid = false;
         }
-        if (!formData.media?.seoData?.metaTitle) {
-          stepErrors.push('Meta title is required');
-          isValid = false;
-        }
-        if (!formData.media?.seoData?.metaDescription) {
-          stepErrors.push('Meta description is required');
-          isValid = false;
-        }
+        // SEO fields are now optional - removed metaTitle and metaDescription requirements
         break;
 
       case 7: // Review
