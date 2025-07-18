@@ -13,14 +13,22 @@ export const uploadImageToStorage = async (
   bucket: string = 'tenant-assets'
 ): Promise<string> => {
   try {
+    console.log('🔍 DEBUG: Starting uploadImageToStorage');
+    console.log('🔍 DEBUG: File name:', file.name, 'Size:', file.size, 'Type:', file.type);
+    console.log('🔍 DEBUG: Target bucket:', bucket, 'Path:', path);
+    
     // Generate a unique filename to avoid collisions
     const timestamp = new Date().getTime();
     const randomString = Math.random().toString(36).substring(2, 10);
     const fileExtension = file.name.split('.').pop();
     const uniqueFileName = `${path}${timestamp}-${randomString}.${fileExtension}`;
+    console.log('🔍 DEBUG: Generated unique filename:', uniqueFileName);
     
-    // Upload the file to Supabase Storage
-    const { data, error } = await supabase
+    // Upload the file to Supabase Storage with timeout
+    console.log('🔍 DEBUG: Starting Supabase storage upload...');
+    
+    // Create upload promise
+    const uploadPromise = supabase
       .storage
       .from(bucket)
       .upload(uniqueFileName, file, {
@@ -28,17 +36,33 @@ export const uploadImageToStorage = async (
         upsert: false
       });
     
+    // Create timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Upload timeout after 30 seconds'));
+      }, 30000);
+    });
+    
+    // Race between upload and timeout
+    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as any;
+    
+    console.log('🔍 DEBUG: Supabase upload completed');
+    console.log('🔍 DEBUG: Upload data:', data);
+    console.log('🔍 DEBUG: Upload error:', error);
+    
     if (error) {
       console.error('Error uploading file to storage:', error);
       throw error;
     }
     
     // Generate a public URL for the uploaded file
+    console.log('🔍 DEBUG: Generating public URL...');
     const { data: urlData } = supabase
       .storage
       .from(bucket)
       .getPublicUrl(uniqueFileName);
     
+    console.log('🔍 DEBUG: Public URL generated:', urlData.publicUrl);
     return urlData.publicUrl;
   } catch (error) {
     console.error('Error in uploadImageToStorage:', error);

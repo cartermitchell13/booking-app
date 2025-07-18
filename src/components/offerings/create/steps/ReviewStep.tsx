@@ -174,17 +174,25 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
 
   // Handle publishing actions
   const handlePublish = async () => {
+    console.log('🔍 DEBUG: handlePublish called');
+    console.log('🔍 DEBUG: publishingMode:', publishingMode);
+    console.log('🔍 DEBUG: validationErrors.length:', validationErrors.length);
+    console.log('🔍 DEBUG: isPublishing:', isPublishing);
+    
     if (publishingMode === 'immediate' && validationErrors.length > 0) {
+      console.log('🔍 DEBUG: Validation errors prevent publishing');
       alert('Please fix validation errors before publishing');
       return;
     }
 
     // Ensure we have complete form data
     const completeFormData = formData as any; // Type assertion since we know it's complete at this step
+    console.log('🔍 DEBUG: Form data keys:', Object.keys(completeFormData));
 
     setShowSuccessMessage(false);
 
     try {
+      console.log('🔍 DEBUG: Starting publish process');
       let result;
       let message = '';
 

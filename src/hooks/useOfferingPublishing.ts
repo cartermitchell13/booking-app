@@ -230,45 +230,75 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
 
   // Publish immediately
   const publishImmediately = useCallback(async (formData: OfferingFormData) => {
+    console.log('🔍 DEBUG: publishImmediately called');
+    console.log('🔍 DEBUG: tenant?.id:', tenant?.id);
+    console.log('🔍 DEBUG: supabase available:', !!supabase);
+    
     if (!tenant?.id || !supabase) {
+      console.error('❌ DEBUG: Missing tenant or supabase');
       return { success: false };
     }
 
+    console.log('🔍 DEBUG: Setting isPublishing to true');
     setIsPublishing(true);
     setPublishingError(null);
 
     try {
       console.log('🚀 Publishing offering for tenant:', tenant.id);
+      console.log('🔍 DEBUG: Form data structure:', {
+        hasBasicInfo: !!formData.basicInfo,
+        hasMedia: !!formData.media,
+        hasScheduling: !!formData.scheduling,
+        hasPricing: !!formData.pricing,
+        productType: formData.productType
+      });
       
       // 1. First, if we have an image, upload it to Supabase Storage
       const images = formData.media?.images || [];
+      console.log('🔍 DEBUG: Starting image upload process');
+      console.log('🔍 DEBUG: Images array length:', images.length);
+      console.log('🔍 DEBUG: First image type:', images[0] ? typeof images[0] : 'no images');
+      
       const imageUrl = await uploadProductImage(images);
+      console.log('🔍 DEBUG: Image upload completed, URL:', imageUrl ? 'URL received' : 'no URL');
       
       // 2. Transform form data to database structure
+      console.log('🔍 DEBUG: Starting form data transformation');
       const product = transformFormDataToProduct(formData, 'active');
+      console.log('🔍 DEBUG: Form data transformation completed');
       
       // 3. Set the image_url to the uploaded image's public URL
       if (imageUrl) {
         product.image_url = imageUrl;
+        console.log('🔍 DEBUG: Image URL set on product');
       }
 
       console.log('📦 Product data:', JSON.stringify(product, null, 2));
 
       // 4. Insert the product into the database
+      console.log('🔍 DEBUG: Starting database insert');
       const { data, error } = await supabase
         .from('products')
         .insert(product)
         .select('id')
         .single();
+      console.log('🔍 DEBUG: Database insert completed, error:', !!error, 'data:', !!data);
 
       if (error) throw error;
       
       // Create initial product instances if scheduling data exists
+      console.log('🔍 DEBUG: Checking if product instances need to be created');
+      console.log('🔍 DEBUG: Schedule type:', formData.scheduling?.scheduleType);
+      console.log('🔍 DEBUG: Has recurring pattern:', !!formData.scheduling?.recurringPattern);
+      
       if (formData.scheduling.scheduleType === 'fixed' && formData.scheduling.recurringPattern) {
+        console.log('🔍 DEBUG: Generating product instances');
         // Generate instances based on recurring pattern
         const instances = generateProductInstances(data.id, formData.scheduling);
+        console.log('🔍 DEBUG: Generated instances count:', instances.length);
         
         if (instances.length > 0) {
+          console.log('🔍 DEBUG: Inserting product instances');
           const { error: instanceError } = await supabase
             .from('product_instances')
             .insert(instances);
@@ -276,15 +306,20 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
           if (instanceError) {
             console.warn('Failed to create product instances:', instanceError);
             // Continue anyway, the main product was created
+          } else {
+            console.log('🔍 DEBUG: Product instances created successfully');
           }
         }
       }
       
       // Clear localStorage draft
+      console.log('🔍 DEBUG: Clearing localStorage draft');
       localStorage.removeItem('offering-form-draft');
-
+      
+      console.log('🔍 DEBUG: Publishing completed successfully');
       return { success: true, productId: data.id };
     } catch (error: any) {
+      console.log('🔍 DEBUG: Error caught in publishImmediately');
       console.error('Error publishing offering:', error);
       
       // Handle different types of errors
@@ -307,9 +342,11 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
         }
       }
       
+      console.log('🔍 DEBUG: Setting publishing error:', errorMessage);
       setPublishingError(errorMessage);
       return { success: false };
     } finally {
+      console.log('🔍 DEBUG: Finally block - setting isPublishing to false');
       setIsPublishing(false);
     }
   }, [tenant?.id, supabase, transformFormDataToProduct, uploadProductImage]);
