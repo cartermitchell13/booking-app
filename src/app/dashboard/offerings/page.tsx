@@ -15,11 +15,13 @@ import {
   Eye,
   Search,
   Filter,
-  Loader2
+  Loader2,
+  FileText
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { offeringTypeColors, statusColors } from '@/lib/offerings-constants';
+import { DraftManager } from '@/components/offerings/DraftManager';
 
 interface Product {
   id: string;
@@ -53,6 +55,7 @@ export default function OfferingsManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDraftManager, setShowDraftManager] = useState(false);
 
   // Load real products from database
   useEffect(() => {
@@ -186,14 +189,23 @@ export default function OfferingsManagement() {
             Manage all your offerings - tours, equipment, classes, packages, and more
           </p>
         </div>
-        <button 
-          onClick={() => router.push('/dashboard/offerings/create')}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          disabled={isCreating}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create New Offering
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowDraftManager(true)}
+            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Manage Drafts
+          </button>
+          <button 
+            onClick={() => router.push('/dashboard/offerings/create')}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={isCreating}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create New Offering
+          </button>
+        </div>
       </div>
 
       {/* Filters & Search */}
@@ -381,6 +393,12 @@ export default function OfferingsManagement() {
         </div>
       )}
 
+      {/* Draft Manager Modal */}
+      <DraftManager
+        isOpen={showDraftManager}
+        onClose={() => setShowDraftManager(false)}
+        onCreateNew={() => router.push('/dashboard/offerings/create')}
+      />
 
     </div>
   );

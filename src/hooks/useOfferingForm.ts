@@ -170,6 +170,7 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false);
 
   // Memoize auto-save config to prevent constant re-renders
   const stableAutoSaveConfig = useMemo(() => autoSaveConfig, [autoSaveConfig.interval, autoSaveConfig.enabled]);
@@ -220,6 +221,59 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
       }
     }
   }, []);
+
+  // Load draft data if coming from draft manager
+  useEffect(() => {
+    if (isDraftLoaded) return;
+
+    const loadDraftData = () => {
+      try {
+        // Check for draft data in sessionStorage (from draft manager)
+        const draftData = sessionStorage.getItem('loadDraft');
+        if (draftData) {
+          const { draftId, formData: draftFormData } = JSON.parse(draftData);
+          console.log('Loading draft:', draftId);
+          console.log('Draft form data:', draftFormData);
+          
+          // Ensure the draft form data has the expected structure
+          if (draftFormData && typeof draftFormData === 'object') {
+            setFormData(draftFormData);
+            setCurrentStep(7); // Go to review step for drafts
+            setIsDraftLoaded(true);
+            
+            // Clear sessionStorage after loading
+            sessionStorage.removeItem('loadDraft');
+            
+            // Also clear the URL parameter to prevent re-loading
+            const url = new URL(window.location.href);
+            url.searchParams.delete('draft');
+            window.history.replaceState({}, '', url.toString());
+            
+            console.log('Draft loaded successfully');
+            return;
+          } else {
+            console.error('Invalid draft data structure:', draftFormData);
+          }
+        }
+
+        // Check URL params for draft parameter only if we haven't loaded from sessionStorage
+        const draftParam = searchParams.get('draft');
+        if (draftParam) {
+          console.log('Draft parameter found but no sessionStorage data - this usually means the draft loading already happened');
+          // Clear the URL parameter to prevent future confusion
+          const url = new URL(window.location.href);
+          url.searchParams.delete('draft');
+          window.history.replaceState({}, '', url.toString());
+          setIsDraftLoaded(true);
+        }
+      } catch (error) {
+        console.error('Error loading draft data:', error);
+        setIsDraftLoaded(true);
+      }
+    };
+
+    loadDraftData();
+  }, [searchParams, isDraftLoaded]);
 
   // Update form data
   const updateFormData = useCallback((section: keyof OfferingFormData, data: any) => {
