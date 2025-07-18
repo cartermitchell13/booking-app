@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTenant, useTenantSupabase } from '@/lib/tenant-context';
 
 // Simple form data structure
 export interface OfferingFormData {
@@ -161,6 +162,8 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
   const router = useRouter();
   const searchParams = useSearchParams();
   const autoSaveRef = useRef<NodeJS.Timeout>();
+  const { tenant } = useTenant();
+  const { supabase } = useTenantSupabase();
   
   // Form state
   const [formData, setFormData] = useState<Partial<OfferingFormData>>(defaultFormValues);
@@ -219,19 +222,21 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
   // Load saved data from localStorage on mount, but only if no draft is being loaded
   useEffect(() => {
     console.log('DEBUG-INIT: Checking whether to load from localStorage');
-    // First check if we have a draft parameter or sessionStorage data, or if draft is already loaded
+    // First check if we have a draft parameter, edit parameter, sessionStorage data, or if draft is already loaded
     const hasDraftParam = searchParams.get('draft') !== null;
+    const hasEditParam = searchParams.get('edit') !== null;
     const hasDraftData = sessionStorage.getItem('loadDraft') !== null;
     
     console.log('DEBUG-INIT: Draft param detected?', hasDraftParam);
+    console.log('DEBUG-INIT: Edit param detected?', hasEditParam);
     console.log('DEBUG-INIT: Draft data in sessionStorage?', hasDraftData);
     console.log('DEBUG-INIT: isDraftLoaded?', isDraftLoaded);
     console.log('DEBUG-INIT: Search params:', Object.fromEntries(searchParams.entries()));
     console.log('DEBUG-INIT: SessionStorage content:', sessionStorage.getItem('loadDraft'));
     
-    // Skip localStorage loading if draft is being loaded OR already loaded successfully
-    if ((isDraftLoaded || hasDraftParam || hasDraftData) && formData.lastModified) {
-      console.log('DEBUG-INIT: Draft data detected or already loaded, skipping localStorage load');
+    // Skip localStorage loading if draft is being loaded OR already loaded successfully OR we're editing
+    if (isDraftLoaded || hasDraftParam || hasDraftData || hasEditParam) {
+      console.log('DEBUG-INIT: Draft/edit data detected or already loaded, skipping localStorage load');
       return;
     }
     
@@ -253,9 +258,14 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
   }, [searchParams, isDraftLoaded, formData.lastModified]);
 
 
-  // Function to load draft data - wrapped in useCallback to prevent infinite loops
-  const loadDraftData = useCallback(() => {
-    console.log('DEBUG-LOAD: loadDraftData called');
+  // Function to load draft data or existing product for editing - wrapped in useCallback to prevent infinite loops
+  const loadDraftData = useCallback(async () => {
+    console.log('DEBUG-LOAD: loadDraftData called', {
+      isDraftLoaded,
+      searchParams: searchParams.toString(),
+      tenantId: tenant?.id,
+      hasSupabase: !!supabase
+    });
     
     // Skip if draft is already loaded
     if (isDraftLoaded) {
@@ -264,6 +274,187 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
     }
     
     try {
+      // First check if we're editing an existing product
+      const editProductId = searchParams.get('edit');
+      console.log('DEBUG-LOAD: Edit product ID from URL:', editProductId);
+      
+      if (editProductId && !isDraftLoaded) {
+        console.log('DEBUG-EDIT: Edit product ID detected:', editProductId);
+        
+        // Check if tenant and supabase are available
+        if (!tenant?.id) {
+          console.log('DEBUG-EDIT: Tenant not available yet, will retry');
+          // Retry after a short delay if tenant isn't ready
+          setTimeout(() => {
+            if (!isDraftLoaded) {
+              console.log('DEBUG-EDIT: Retrying loadDraftData after tenant delay');
+              loadDraftData();
+            }
+          }, 100);
+          return;
+        }
+        
+        if (!supabase) {
+          console.log('DEBUG-EDIT: Supabase not available yet, will retry');
+          // Retry after a short delay if supabase isn't ready
+          setTimeout(() => {
+            if (!isDraftLoaded) {
+              console.log('DEBUG-EDIT: Retrying loadDraftData after supabase delay');
+              loadDraftData();
+            }
+          }, 100);
+          return;
+        }
+        
+        console.log('DEBUG-EDIT: Loading existing product for editing:', editProductId);
+        
+        try {
+          // Fetch the product from the database
+          const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', editProductId)
+            .eq('tenant_id', tenant.id)
+            .single();
+
+          if (error) {
+            console.error('Error loading product data:', error);
+            throw error;
+          }
+
+          if (!data) {
+            console.error('No product found with ID:', editProductId);
+            return;
+          }
+          
+          // Also fetch product instances (fixed dates) for this product
+          const { data: instances, error: instancesError } = await supabase
+            .from('product_instances')
+            .select('*')
+            .eq('product_id', editProductId)
+            .eq('tenant_id', tenant.id)
+            .order('start_time');
+            
+          if (instancesError) {
+            console.error('Error loading product instances:', instancesError);
+            // Don't throw error, just log it - product can exist without instances
+          }
+          
+          console.log('DEBUG-EDIT: Product instances (fixed dates):', instances);
+
+          // Transform the product data into form data format
+          const productFormData: Partial<OfferingFormData> = {
+            ...defaultFormValues,
+            basicInfo: {
+              ...defaultFormValues.basicInfo,
+              name: data.name || '', // Fixed: use 'name' instead of 'title'
+              description: data.description || '',
+              location: data.location || '',
+              category: data.category || '',
+              // Extract from product_data JSONB if available, otherwise use defaults
+              duration: data.product_data?.duration || 60,
+              difficultyLevel: data.product_data?.difficulty_level || 'easy',
+              minAge: data.product_data?.min_age || 0,
+              maxGroupSize: data.product_data?.max_group_size || 50,
+              tags: data.tags || []
+            },
+            scheduling: {
+              ...defaultFormValues.scheduling,
+              // Extract from availability_data JSONB if available
+              scheduleType: data.availability_data?.schedule_type || 'fixed',
+              timezone: data.availability_data?.timezone || 'America/Vancouver',
+              advanceBookingDays: data.availability_data?.advance_booking_days || 1,
+              cutoffHours: data.availability_data?.cutoff_hours || 24,
+              recurringPattern: {
+                ...(data.availability_data?.recurring_pattern || {}),
+                // Include fixed dates from product instances
+                fixedDates: instances ? instances.map(instance => ({
+                  id: instance.id,
+                  startTime: instance.start_time,
+                  endTime: instance.end_time,
+                  timezone: instance.timezone,
+                  maxQuantity: instance.max_quantity,
+                  availableQuantity: instance.available_quantity,
+                  status: instance.status,
+                  priceOverride: instance.price_override
+                })) : []
+              },
+              blackoutDates: data.availability_data?.blackout_dates ? data.availability_data.blackout_dates.map((d: string) => new Date(d)) : []
+            },
+            pricing: {
+              ...defaultFormValues.pricing,
+              currency: data.currency || 'CAD',
+              basePricing: {
+                ...defaultFormValues.pricing?.basePricing,
+                adult: data.base_price ? data.base_price / 100 : 0, // Fixed: use 'base_price'
+                child: data.product_data?.price_child ? data.product_data.price_child / 100 : 0,
+                student: data.product_data?.price_student ? data.product_data.price_student / 100 : 0,
+                senior: data.product_data?.price_senior ? data.product_data.price_senior / 100 : 0
+              },
+              groupDiscounts: data.product_data?.group_discounts || [],
+              seasonalPricing: data.product_data?.seasonal_pricing || [],
+              cancellationPolicy: {
+                ...defaultFormValues.pricing?.cancellationPolicy,
+                freeCancellationHours: data.booking_rules?.free_cancellation_hours || 24,
+                refundPercentage: data.booking_rules?.refund_percentage || 100,
+                processingFee: data.booking_rules?.processing_fee || 0
+              },
+              taxInclusive: data.product_data?.tax_inclusive || false,
+              depositRequired: data.booking_rules?.deposit_required || false,
+              depositAmount: data.booking_rules?.deposit_amount ? data.booking_rules.deposit_amount / 100 : 0
+            },
+            media: {
+              ...defaultFormValues.media,
+              images: data.image_url ? [{ url: data.image_url, alt: data.name || '', isPrimary: true, order: 0 }] : [],
+              videos: data.product_data?.videos || [],
+              seoData: {
+                ...defaultFormValues.media?.seoData,
+                metaTitle: data.seo_data?.meta_title || data.name || '',
+                metaDescription: data.seo_data?.meta_description || data.description || '',
+                keywords: data.seo_data?.keywords || [],
+                slug: data.seo_data?.slug || ''
+              },
+              socialMedia: {
+                shareTitle: data.seo_data?.share_title || data.name || '',
+                shareDescription: data.seo_data?.share_description || data.description || '',
+                shareImage: data.seo_data?.share_image || data.image_url || ''
+              }
+            },
+            productType: data.product_type || 'tour',
+            businessType: data.business_type || 'tour',
+            productConfig: {
+              ...(defaultFormValues.productConfig || {}),
+              // Copy all product_data fields for configuration step
+              ...(data.product_data || {}),
+              isEditMode: true,
+              productId: data.id
+            },
+            lastModified: new Date()
+          };
+
+          console.log('DEBUG-EDIT: Raw product data from database:', data);
+          console.log('DEBUG-EDIT: Availability data specifically:', data.availability_data);
+          console.log('DEBUG-EDIT: Transformed product data for form:', productFormData);
+          setFormData(productFormData);
+          setIsDraftLoaded(true);
+          
+          // Log the form data after a short delay to see what was actually set
+          setTimeout(() => {
+            console.log('DEBUG-EDIT: Form data after setting:', productFormData);
+          }, 100);
+          
+          // Clear the edit parameter from the URL to prevent reloading
+          const url = new URL(window.location.href);
+          url.searchParams.delete('edit');
+          window.history.replaceState({}, '', url.toString());
+          
+          return;
+        } catch (error) {
+          console.error('Error loading product for editing:', error);
+        }
+      }
+      
+      // If not editing a product, proceed with normal draft loading
       // Check for draft data in sessionStorage (from draft manager)
       const draftData = sessionStorage.getItem('loadDraft');
       console.log('DEBUG-LOAD: Draft data in sessionStorage:', draftData ? 'present (truncated)' : 'null');
@@ -281,7 +472,15 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
           if (draftFormData && typeof draftFormData === 'object') {
             console.log('DEBUG-LOAD: Setting form data from draft');
             // Force replacement of the entire form data structure
-            setFormData(draftFormData);
+            setFormData({
+              ...draftFormData,
+              productConfig: {
+                ...(defaultFormValues.productConfig || {}),
+                isEditMode: true,
+                productId: draftId
+              },
+              lastModified: new Date()
+            });
             console.log('DEBUG-LOAD: Setting current step to review');
             setCurrentStep(7); // Go to review step for drafts
             
@@ -330,14 +529,18 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
       console.error('DEBUG-LOAD: Error in loadDraftData:', error);
       setIsDraftLoaded(true);
     }
-  }, [searchParams, isDraftLoaded]);
+  }, [searchParams, isDraftLoaded, tenant?.id, supabase, setFormData, setCurrentStep, setIsDraftLoaded]);
 
   
   // Load draft data if available
   useEffect(() => {
+    console.log('DEBUG-EFFECT: useEffect triggered', { isDraftLoaded, searchParams: searchParams.toString() });
     // Only try to load draft data once on initial mount
     if (!isDraftLoaded) {
+      console.log('DEBUG-EFFECT: Calling loadDraftData');
       loadDraftData();
+    } else {
+      console.log('DEBUG-EFFECT: Draft already loaded, skipping');
     }
   }, [isDraftLoaded, loadDraftData]);
 

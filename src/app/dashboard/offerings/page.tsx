@@ -376,7 +376,11 @@ export default function OfferingsManagement() {
                     </button>
                   </div>
                   <div className="flex space-x-2">
-                    <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                    <button 
+                      onClick={() => router.push(`/dashboard/offerings/create?edit=${product.id}`)}
+                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Edit offering"
+                    >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button 

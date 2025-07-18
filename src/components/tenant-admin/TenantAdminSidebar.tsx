@@ -93,23 +93,20 @@ export default function TenantAdminSidebar({ tenant }: TenantProps) {
     <div className={`w-64 bg-white shadow-lg border-r border-gray-200 ${GeistSans.className}`}>
       <div className="flex flex-col h-full">
         {/* Logo/Brand */}
-        <div className="flex items-center px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center">
+        <div className="flex flex-col items-center px-6 py-4 border-b border-gray-200">
+          <div className="flex flex-col items-center">
             {tenant?.branding?.logo_url ? (
               <img
                 src={tenant.branding.logo_url}
                 alt={`${tenant.name} logo`}
-                className="h-8 w-auto mr-3"
+                className="h-10 w-auto mb-2"
               />
             ) : (
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-                <Building2 className="h-5 w-5 text-white" />
+              <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center mb-2">
+                <Building2 className="h-6 w-6 text-white" />
               </div>
             )}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                {tenant?.name || 'Business'}
-              </h2>
               <p className="text-xs text-gray-500">Admin Panel</p>
             </div>
           </div>
