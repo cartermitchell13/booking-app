@@ -52,7 +52,7 @@ export default function TenantAdminHeader({ tenant }: TenantProps) {
 
   return (
     <header className={`bg-white shadow-sm border-b border-gray-200 ${GeistSans.className}`}>
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex items-center justify-between px-6 py-4 h-[73px]">
         {/* Left side - Breadcrumbs */}
         <div className="flex items-center space-x-4">
           <nav className="flex" aria-label="Breadcrumb">
