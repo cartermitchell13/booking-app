@@ -130,71 +130,44 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
 
   // Handle image uploads to Supabase Storage
   const uploadProductImage = useCallback(async (images: any[]): Promise<string | null> => {
-    if (!tenant?.id || !images || images.length === 0) {
-      console.log('No images to upload or missing tenant ID');
-      return null;
-    }
+    if (!tenant?.id || !images || images.length === 0) return null;
     
-    // Add a timeout to prevent hanging forever
-    const uploadPromise = new Promise<string | null>(async (resolve, reject) => {
-      try {
-        const firstImage = images[0];
-        
-        // Handle string data URLs
-        if (typeof firstImage === 'string' && firstImage.startsWith('data:')) {
-          console.log('📸 Uploading string image to Supabase Storage...');
-          const url = await uploadDataUrlToStorage(
-            firstImage,
+    try {
+      const firstImage = images[0];
+      
+      // Handle string data URLs
+      if (typeof firstImage === 'string' && firstImage.startsWith('data:')) {
+        console.log('📸 Uploading string image to Supabase Storage...');
+        return await uploadDataUrlToStorage(
+          firstImage,
+          'product-image-' + Date.now(),
+          `products/${tenant.id}/`,
+          'tenant-assets'
+        );
+      }
+      
+      // Handle object with URL property
+      if (typeof firstImage === 'object' && firstImage !== null) {
+        const url = firstImage.url;
+        if (typeof url === 'string' && url.startsWith('data:')) {
+          console.log('📸 Uploading object image to Supabase Storage...');
+          return await uploadDataUrlToStorage(
+            url,
             'product-image-' + Date.now(),
             `products/${tenant.id}/`,
             'tenant-assets'
           );
-          console.log('✅ String image uploaded successfully');
-          resolve(url);
-          return;
+        } else if (typeof url === 'string') {
+          // It's already a valid URL
+          return url;
         }
-        
-        // Handle object with URL property
-        if (typeof firstImage === 'object' && firstImage !== null) {
-          const url = firstImage.url;
-          if (typeof url === 'string' && url.startsWith('data:')) {
-            console.log('📸 Uploading object image to Supabase Storage...');
-            const uploadedUrl = await uploadDataUrlToStorage(
-              url,
-              'product-image-' + Date.now(),
-              `products/${tenant.id}/`,
-              'tenant-assets'
-            );
-            console.log('✅ Object image uploaded successfully');
-            resolve(uploadedUrl);
-            return;
-          } else if (typeof url === 'string') {
-            // It's already a valid URL
-            console.log('✅ Using existing URL:', url.substring(0, 30) + '...');
-            resolve(url);
-            return;
-          }
-        }
-        
-        console.log('⚠️ No valid image format found, using null');
-        resolve(null);
-      } catch (error) {
-        console.error('❌ Failed to upload image:', error);
-        // Don't reject as we want to continue with publishing
-        resolve(null);
       }
-    });
-    
-    // Set a 30-second timeout to prevent hanging indefinitely
-    const timeoutPromise = new Promise<string | null>((resolve) => {
-      setTimeout(() => {
-        console.warn('⚠️ Image upload timed out after 30 seconds');
-        resolve(null);
-      }, 30000); // 30 seconds timeout
-    });
-    
-    // Return the first promise to resolve (either upload completes or timeout)
-    return Promise.race([uploadPromise, timeoutPromise]);
+      
+      return null;
+    } catch (error) {
+      console.error('❌ Failed to upload image:', error);
+      return null;
+    }
   }, [tenant?.id]);
 
   // Save draft to database

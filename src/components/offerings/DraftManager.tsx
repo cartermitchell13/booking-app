@@ -77,27 +77,55 @@ export const DraftManager: React.FC<DraftManagerProps> = ({ isOpen, onClose, onC
   };
 
   const handleEditDraft = async (draftId: string) => {
+    console.log('DEBUG-DRAFT-MANAGER: Edit draft clicked for ID:', draftId);
     try {
+      console.log('DEBUG-DRAFT-MANAGER: Loading draft data from server...');
       const draftData = await loadDraft(draftId);
+      console.log('DEBUG-DRAFT-MANAGER: Draft data loaded:', draftData ? 'success' : 'failed');
       
       if (draftData) {
+        // First clear any existing data in sessionStorage
+        sessionStorage.removeItem('loadDraft');
+        console.log('DEBUG-DRAFT-MANAGER: Cleared existing sessionStorage data');
+        
         const sessionData = {
           draftId,
           formData: draftData
         };
         
+        // Log details about the draft data being stored
+        console.log('DEBUG-DRAFT-MANAGER: Draft data fields:', Object.keys(draftData));
+        
         // Store draft data in sessionStorage to be loaded by the create page
-        sessionStorage.setItem('loadDraft', JSON.stringify(sessionData));
+        const dataString = JSON.stringify(sessionData);
+        console.log('DEBUG-DRAFT-MANAGER: Data size to store in sessionStorage:', dataString.length, 'bytes');
+        sessionStorage.setItem('loadDraft', dataString);
+        console.log('DEBUG-DRAFT-MANAGER: Saved draft data to sessionStorage');
+        
+        // Double-check the data was stored correctly
+        const storedData = sessionStorage.getItem('loadDraft');
+        console.log('DEBUG-DRAFT-MANAGER: Verified sessionStorage data exists:', !!storedData);
+        if (storedData) {
+          try {
+            const parsed = JSON.parse(storedData);
+            console.log('DEBUG-DRAFT-MANAGER: Parsed sessionStorage data successfully, draft ID:', parsed.draftId);
+          } catch (e) {
+            console.error('DEBUG-DRAFT-MANAGER: Error parsing stored data:', e);
+          }
+        }
         
         // Navigate to create page with draft parameter
-        router.push(`/dashboard/offerings/create?draft=${draftId}`);
+        const url = `/dashboard/offerings/create?draft=${draftId}`;
+        console.log('DEBUG-DRAFT-MANAGER: Navigating to:', url);
+        router.push(url);
         onClose();
       } else {
+        console.error('DEBUG-DRAFT-MANAGER: Failed to load draft data, draft data is null or undefined');
         setError('Failed to load draft data');
       }
     } catch (err) {
+      console.error('DEBUG-DRAFT-MANAGER: Error loading draft:', err);
       setError('Failed to load draft');
-      console.error('Error loading draft:', err);
     }
   };
 

@@ -178,9 +178,16 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
   // Save to localStorage
   const saveToLocalStorage = useCallback(() => {
     try {
-      localStorage.setItem('offering-form-draft', JSON.stringify(formData));
+      console.log('Saving form data to localStorage:', formData);
+      localStorage.setItem('offering-form-draft', JSON.stringify({
+        ...formData,
+        lastModified: new Date().toISOString()
+      }));
+      setIsDirty(false);
+      return true;
     } catch (error) {
-      console.error('Error saving form data:', error);
+      console.error('Error saving to localStorage:', error);
+      return false;
     }
   }, [formData]);
 
@@ -209,84 +216,152 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
     };
   }, [formData, isDirty, stableAutoSaveConfig, saveToLocalStorage]);
 
-  // Load saved data from localStorage on mount
+  // Load saved data from localStorage on mount, but only if no draft is being loaded
   useEffect(() => {
+    console.log('DEBUG-INIT: Checking whether to load from localStorage');
+    // First check if we have a draft parameter or sessionStorage data, or if draft is already loaded
+    const hasDraftParam = searchParams.get('draft') !== null;
+    const hasDraftData = sessionStorage.getItem('loadDraft') !== null;
+    
+    console.log('DEBUG-INIT: Draft param detected?', hasDraftParam);
+    console.log('DEBUG-INIT: Draft data in sessionStorage?', hasDraftData);
+    console.log('DEBUG-INIT: isDraftLoaded?', isDraftLoaded);
+    console.log('DEBUG-INIT: Search params:', Object.fromEntries(searchParams.entries()));
+    console.log('DEBUG-INIT: SessionStorage content:', sessionStorage.getItem('loadDraft'));
+    
+    // Skip localStorage loading if draft is being loaded OR already loaded successfully
+    if ((isDraftLoaded || hasDraftParam || hasDraftData) && formData.lastModified) {
+      console.log('DEBUG-INIT: Draft data detected or already loaded, skipping localStorage load');
+      return;
+    }
+    
+    // Only proceed with localStorage loading if we're not dealing with drafts or if formData is empty
+    console.log('DEBUG-INIT: Loading from localStorage');
     const savedData = localStorage.getItem('offering-form-draft');
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        setFormData(parsed);
+        console.log('DEBUG-INIT: Setting formData from localStorage');
+        // Only set form data from localStorage if it exists and has content
+        if (parsed && Object.keys(parsed).length > 0) {
+          setFormData(parsed);
+        }
       } catch (error) {
         console.error('Error loading saved form data:', error);
       }
     }
-  }, []);
+  }, [searchParams, isDraftLoaded, formData.lastModified]);
 
-  // Load draft data if coming from draft manager
-  useEffect(() => {
-    if (isDraftLoaded) return;
 
-    const loadDraftData = () => {
-      try {
-        // Check for draft data in sessionStorage (from draft manager)
-        const draftData = sessionStorage.getItem('loadDraft');
-        if (draftData) {
-          const { draftId, formData: draftFormData } = JSON.parse(draftData);
-          console.log('Loading draft:', draftId);
-          console.log('Draft form data:', draftFormData);
+  // Function to load draft data - wrapped in useCallback to prevent infinite loops
+  const loadDraftData = useCallback(() => {
+    console.log('DEBUG-LOAD: loadDraftData called');
+    
+    // Skip if draft is already loaded
+    if (isDraftLoaded) {
+      console.log('DEBUG-LOAD: Draft already loaded, skipping');
+      return;
+    }
+    
+    try {
+      // Check for draft data in sessionStorage (from draft manager)
+      const draftData = sessionStorage.getItem('loadDraft');
+      console.log('DEBUG-LOAD: Draft data in sessionStorage:', draftData ? 'present (truncated)' : 'null');
+      
+      if (draftData) {
+        try {
+          const parsedData = JSON.parse(draftData);
+          console.log('DEBUG-LOAD: Successfully parsed draft data');
+          
+          const { draftId, formData: draftFormData } = parsedData;
+          console.log('DEBUG-LOAD: Loading draft ID:', draftId);
+          console.log('DEBUG-LOAD: Draft form data structure:', Object.keys(draftFormData));
           
           // Ensure the draft form data has the expected structure
           if (draftFormData && typeof draftFormData === 'object') {
+            console.log('DEBUG-LOAD: Setting form data from draft');
+            // Force replacement of the entire form data structure
             setFormData(draftFormData);
+            console.log('DEBUG-LOAD: Setting current step to review');
             setCurrentStep(7); // Go to review step for drafts
+            
+            // Mark as loaded immediately to prevent any other data from overriding it
             setIsDraftLoaded(true);
             
             // Clear sessionStorage after loading
+            console.log('DEBUG-LOAD: Clearing sessionStorage');
             sessionStorage.removeItem('loadDraft');
             
             // Also clear the URL parameter to prevent re-loading
             const url = new URL(window.location.href);
             url.searchParams.delete('draft');
             window.history.replaceState({}, '', url.toString());
+            console.log('DEBUG-LOAD: URL updated, removed draft parameter');
             
-            console.log('Draft loaded successfully');
+            console.log('DEBUG-LOAD: Draft loaded successfully');
             return;
           } else {
-            console.error('Invalid draft data structure:', draftFormData);
+            console.error('DEBUG-LOAD: Invalid draft form data structure:', draftFormData);
           }
+        } catch (parseError) {
+          console.error('DEBUG-LOAD: Error parsing draft data JSON:', parseError);
         }
-
-        // Check URL params for draft parameter only if we haven't loaded from sessionStorage
-        const draftParam = searchParams.get('draft');
-        if (draftParam) {
-          console.log('Draft parameter found but no sessionStorage data - this usually means the draft loading already happened');
-          // Clear the URL parameter to prevent future confusion
-          const url = new URL(window.location.href);
-          url.searchParams.delete('draft');
-          window.history.replaceState({}, '', url.toString());
-          setIsDraftLoaded(true);
-        }
-      } catch (error) {
-        console.error('Error loading draft data:', error);
-        setIsDraftLoaded(true);
+      } else {
+        console.log('DEBUG-LOAD: No draft data found in sessionStorage');
       }
-    };
 
-    loadDraftData();
+      // Check URL params for draft parameter only if we haven't loaded from sessionStorage
+      const draftParam = searchParams.get('draft');
+      console.log('DEBUG-LOAD: Draft parameter in URL:', draftParam);
+      
+      if (draftParam) {
+        console.log('DEBUG-LOAD: Draft parameter found but no sessionStorage data - cleaning up');
+        // This indicates we likely already loaded the draft in a previous render
+        // or the sessionStorage data was lost. Either way, clean up the URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('draft');
+        window.history.replaceState({}, '', url.toString());
+        // Mark as loaded to prevent localStorage from being loaded
+        setIsDraftLoaded(true);
+      } else {
+        console.log('DEBUG-LOAD: No draft parameter in URL');
+      }
+    } catch (error) {
+      console.error('DEBUG-LOAD: Error in loadDraftData:', error);
+      setIsDraftLoaded(true);
+    }
   }, [searchParams, isDraftLoaded]);
+
+  
+  // Load draft data if available
+  useEffect(() => {
+    // Only try to load draft data once on initial mount
+    if (!isDraftLoaded) {
+      loadDraftData();
+    }
+  }, [isDraftLoaded, loadDraftData]);
+
 
   // Update form data
   const updateFormData = useCallback((section: keyof OfferingFormData, data: any) => {
     setFormData(prev => {
       const currentSection = prev[section];
       
-      return {
+      const updatedForm = {
         ...prev,
         [section]: typeof data === 'object' && data !== null && !Array.isArray(data) && currentSection && typeof currentSection === 'object'
           ? { ...currentSection, ...data }
           : data,
         lastModified: new Date()
       };
+      
+      // Save immediately to localStorage after every update
+      setTimeout(() => {
+        localStorage.setItem('offering-form-draft', JSON.stringify(updatedForm));
+        console.log('Form data auto-saved after update');
+      }, 0);
+      
+      return updatedForm;
     });
     setIsDirty(true);
   }, []);
@@ -402,28 +477,41 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
   // Navigate to a specific step
   const goToStep = useCallback((stepId: number) => {
     if (stepId >= 1 && stepId <= 7) {
+      // Save current form data before navigating
+      saveToLocalStorage();
+      
       const params = new URLSearchParams(searchParams.toString());
       params.set('step', stepId.toString());
       router.push(`/dashboard/offerings/create?${params.toString()}`);
       setCurrentStep(stepId);
     }
-  }, [router, searchParams]);
+  }, [router, searchParams, saveToLocalStorage]);
 
   // Go to next step
   const nextStep = useCallback(() => {
     if (validateStep(currentStep) && currentStep < 7) {
+      // Always save progress when moving to next step
+      saveToLocalStorage();
       goToStep(currentStep + 1);
+    } else {
+      // Show appropriate validation error message
+      console.log('Validation failed for step', currentStep);
+      // Force save anyway to prevent data loss
+      saveToLocalStorage();
     }
-  }, [currentStep, goToStep, validateStep]);
+  }, [currentStep, goToStep, validateStep, saveToLocalStorage]);
 
   // Go to previous step
   const prevStep = useCallback(() => {
+    // Always save current step data before navigating back
+    saveToLocalStorage();
+    
     if (currentStep > 1) {
       goToStep(currentStep - 1);
     } else {
       router.push('/dashboard/offerings');
     }
-  }, [currentStep, goToStep, router]);
+  }, [currentStep, goToStep, router, saveToLocalStorage]);
 
   // Save progress (manual save)
   const saveProgress = useCallback(async () => {
@@ -440,27 +528,43 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
 
   // Submit form
   const submitForm = useCallback(async () => {
+    console.log('DEBUG-SUBMIT: Starting submission process');
     setIsSubmitting(true);
     
     try {
       // Validate current step only to avoid recursive validation
-      if (!validateStep(currentStep)) {
+      console.log('DEBUG-SUBMIT: Validating current step:', currentStep);
+      const isValid = validateStep(currentStep);
+      console.log('DEBUG-SUBMIT: Current step validation result:', isValid);
+      
+      if (!isValid) {
+        console.log('DEBUG-SUBMIT: Validation failed, aborting submission');
         throw new Error('Current step validation failed');
       }
 
-      // TODO: Submit to database via API
-      console.log('Submitting form:', formData);
+      // TODO: Implement actual API submission
+      console.log('DEBUG-SUBMIT: Would submit form data to API here');
+      
+      // Simulate API call with a small delay to ensure state updates complete
+      console.log('DEBUG-SUBMIT: Simulating API call with timeout');
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Clear saved draft
+      console.log('DEBUG-SUBMIT: Clearing localStorage');
       localStorage.removeItem('offering-form-draft');
       
       // Redirect to offerings list
-      router.push('/dashboard/offerings');
+      console.log('DEBUG-SUBMIT: Redirecting to offerings list');
+      setTimeout(() => {
+        setIsSubmitting(false); // Ensure this completes before navigation
+        router.push('/dashboard/offerings');
+      }, 100);
+      
+      return; // Exit early to prevent the finally block from running too soon
       
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error('DEBUG-SUBMIT: Error during submission:', error);
       setErrors({ submit: [error instanceof Error ? error.message : 'Submission failed'] });
-    } finally {
       setIsSubmitting(false);
     }
   }, [formData, validateStep, currentStep, router]);
