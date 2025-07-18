@@ -174,6 +174,7 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
   const [isDirty, setIsDirty] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Memoize auto-save config to prevent constant re-renders
   const stableAutoSaveConfig = useMemo(() => autoSaveConfig, [autoSaveConfig.interval, autoSaveConfig.enabled]);
@@ -226,13 +227,36 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
     const hasDraftParam = searchParams.get('draft') !== null;
     const hasEditParam = searchParams.get('edit') !== null;
     const hasDraftData = sessionStorage.getItem('loadDraft') !== null;
+    const isNewOffering = searchParams.get('new') !== null; // Check for 'new' parameter to start fresh
     
     console.log('DEBUG-INIT: Draft param detected?', hasDraftParam);
     console.log('DEBUG-INIT: Edit param detected?', hasEditParam);
     console.log('DEBUG-INIT: Draft data in sessionStorage?', hasDraftData);
+    console.log('DEBUG-INIT: New offering param detected?', isNewOffering);
     console.log('DEBUG-INIT: isDraftLoaded?', isDraftLoaded);
     console.log('DEBUG-INIT: Search params:', Object.fromEntries(searchParams.entries()));
     console.log('DEBUG-INIT: SessionStorage content:', sessionStorage.getItem('loadDraft'));
+    
+    // If 'new' parameter is present and we haven't initialized yet, clear localStorage and start fresh
+    if (isNewOffering && !hasInitialized) {
+      console.log('DEBUG-INIT: New offering detected, clearing localStorage and starting fresh');
+      
+      localStorage.removeItem('offering-form-draft');
+      sessionStorage.removeItem('loadDraft');
+      setFormData(defaultFormValues);
+      
+      // Only reset to step 1 if no specific step is requested in URL
+      if (!searchParams.get('step')) {
+        setCurrentStep(1);
+      }
+      
+      setStepStatus({});
+      setErrors({});
+      setIsDirty(false);
+      setIsDraftLoaded(false);
+      setHasInitialized(true);
+      return;
+    }
     
     // Skip localStorage loading if draft is being loaded OR already loaded successfully OR we're editing
     if (isDraftLoaded || hasDraftParam || hasDraftData || hasEditParam) {
@@ -240,7 +264,7 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
       return;
     }
     
-    // Only proceed with localStorage loading if we're not dealing with drafts or if formData is empty
+    // Only proceed with localStorage loading if we're not dealing with drafts
     console.log('DEBUG-INIT: Loading from localStorage');
     const savedData = localStorage.getItem('offering-form-draft');
     if (savedData) {
@@ -255,7 +279,7 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
         console.error('Error loading saved form data:', error);
       }
     }
-  }, [searchParams, isDraftLoaded, formData.lastModified]);
+  }, [searchParams, isDraftLoaded, hasInitialized]);
 
 
   // Function to load draft data or existing product for editing - wrapped in useCallback to prevent infinite loops
@@ -752,9 +776,10 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
       console.log('DEBUG-SUBMIT: Simulating API call with timeout');
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Clear saved draft
-      console.log('DEBUG-SUBMIT: Clearing localStorage');
+      // Clear saved draft and session data
+      console.log('DEBUG-SUBMIT: Clearing localStorage and sessionStorage');
       localStorage.removeItem('offering-form-draft');
+      sessionStorage.removeItem('loadDraft');
       
       // Redirect to offerings list
       console.log('DEBUG-SUBMIT: Redirecting to offerings list');

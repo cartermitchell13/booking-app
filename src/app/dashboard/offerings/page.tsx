@@ -198,7 +198,7 @@ export default function OfferingsManagement() {
             Manage Drafts
           </button>
           <button 
-            onClick={() => router.push('/dashboard/offerings/create')}
+            onClick={() => router.push('/dashboard/offerings/create?new=true')}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             disabled={isCreating}
           >
@@ -401,7 +401,7 @@ export default function OfferingsManagement() {
       <DraftManager
         isOpen={showDraftManager}
         onClose={() => setShowDraftManager(false)}
-        onCreateNew={() => router.push('/dashboard/offerings/create')}
+        onCreateNew={() => router.push('/dashboard/offerings/create?new=true')}
       />
 
     </div>
