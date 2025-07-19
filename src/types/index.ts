@@ -161,25 +161,84 @@ export interface User {
 export interface TenantTrip {
   id: string;
   tenant_id: string;
+  
+  // Basic Information
   title: string;
   description?: string;
-  location?: string;
+  category?: string;
+  
+  // Location Information
+  location?: string; // Legacy field, use destination instead
   destination: string;
   departure_location: string;
+  departure_address?: string;
+  
+  // Timing Information
   departure_time: string;
   return_time?: string;
+  
+  // Pricing Information
   price_adult: number;
   price_child?: number;
+  price_student?: number;
+  price_senior?: number;
+  currency?: string;
+  
+  // Capacity Information
   max_passengers: number;
   available_seats: number;
+  min_passengers?: number;
+  
+  // Experience Details
+  duration_minutes?: number;
+  difficulty_level?: string;
+  min_age?: number;
+  vehicle_type?: string;
+  
+  // Media Information
   image_url?: string;
+  images?: Array<{
+    url: string;
+    alt?: string;
+    isPrimary?: boolean;
+    order?: number;
+  }>;
+  videos?: Array<{
+    url: string;
+    title?: string;
+    type?: string;
+    order?: number;
+  }>;
+  
+  // Experience Features
   highlights?: string[];
   included_items?: string[];
+  excluded_items?: string[];
+  requirements?: string[];
+  
   // Geographic coordinates for map display
   destination_lat?: number;
   destination_lng?: number;
   departure_lat?: number;
   departure_lng?: number;
+  
+  // Booking Configuration
+  schedule_type?: string;
+  timezone?: string;
+  advance_booking_days?: number;
+  cutoff_hours?: number;
+  
+  // Cancellation Policy
+  cancellation_policy?: any;
+  deposit_required?: boolean;
+  deposit_amount?: number;
+  tax_inclusive?: boolean;
+  
+  // SEO and Tags
+  tags?: string[];
+  seo_data?: any;
+  
+  // System Fields
   status: 'active' | 'inactive' | 'cancelled';
   created_at: string;
   updated_at: string;

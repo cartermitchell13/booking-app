@@ -1,6 +1,7 @@
 'use client';
 
-import { useTenant, useTenantSupabase } from '@/lib/tenant-context';
+import { useTenant } from '@/lib/tenant-context';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -15,153 +16,11 @@ import {
   Loader2,
   Plus
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-interface DashboardMetrics {
-  totalBookings: number;
-  totalRevenue: number;
-  activeProducts: number;
-  totalCustomers: number;
-  averageRating: number;
-  recentBookings: Array<{
-    id: string;
-    customerName: string;
-    productName: string;
-    date: string;
-    amount: number;
-    status: string;
-  }>;
-  upcomingInstances: Array<{
-    id: string;
-    name: string;
-    date: string;
-    time: string;
-    capacity: number;
-    booked: number;
-    location: string;
-  }>;
-}
-
 export default function TenantDashboard() {
-  const { tenant, isLoading: tenantLoading } = useTenant();
-  const { getProducts, supabase } = useTenantSupabase();
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      if (!tenant?.id || !supabase) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // For mock tenant ID, use the real ParkBus tenant ID
-        const actualTenantId = tenant.id === 'mock-parkbus-id' 
-          ? '20ee5f83-1019-46c7-9382-05a6f1ded9bf' 
-          : tenant.id;
-
-        // Fetch products
-        const products = await getProducts();
-        
-        // Fetch bookings
-        const { data: bookings, error: bookingsError } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            products!inner (
-              name,
-              product_instances (
-                start_time,
-                end_time
-              )
-            )
-          `)
-          .eq('tenant_id', actualTenantId)
-          .order('created_at', { ascending: false });
-
-        if (bookingsError) {
-          console.error('Error fetching bookings:', bookingsError);
-        }
-
-        // Calculate metrics
-        const totalBookings = bookings?.length || 0;
-        const totalRevenue = bookings?.reduce((sum, booking) => 
-          booking.status !== 'cancelled' ? sum + (booking.total_amount || 0) : sum, 0
-        ) || 0;
-        const activeProducts = products?.filter(p => p.status === 'active').length || 0;
-        
-        // Get unique customers
-        const uniqueCustomers = new Set(bookings?.map(b => b.user_id).filter(Boolean)).size;
-
-        // Format recent bookings
-        const recentBookings = (bookings || []).slice(0, 5).map(booking => ({
-          id: booking.booking_reference || booking.id,
-          customerName: booking.customer_name || 'Guest Customer',
-          productName: booking.products?.name || 'Unknown Product',
-          date: new Date(booking.created_at).toLocaleDateString(),
-          amount: (booking.total_amount || 0) / 100, // Convert from cents
-          status: booking.status || 'pending'
-        }));
-
-        // Get upcoming product instances
-        const { data: upcomingInstances, error: instancesError } = await supabase
-          .from('product_instances')
-          .select(`
-            *,
-            products!inner (
-              name,
-              tenant_id
-            )
-          `)
-          .eq('products.tenant_id', actualTenantId)
-          .gte('start_time', new Date().toISOString())
-          .order('start_time', { ascending: true })
-          .limit(5);
-
-        if (instancesError) {
-          console.error('Error fetching instances:', instancesError);
-        }
-
-        const formattedUpcoming = (upcomingInstances || []).map(instance => ({
-          id: instance.id,
-          name: instance.products?.name || 'Unknown Product',
-          date: new Date(instance.start_time).toLocaleDateString(),
-          time: new Date(instance.start_time).toLocaleTimeString('en-US', { 
-            hour: 'numeric', 
-            minute: '2-digit',
-            hour12: true 
-          }),
-          capacity: instance.max_quantity || 0,
-          booked: (instance.max_quantity || 0) - (instance.available_quantity || 0),
-          location: 'Location TBD' // Could be enhanced with location data
-        }));
-
-        setMetrics({
-          totalBookings,
-          totalRevenue: totalRevenue / 100, // Convert from cents
-          activeProducts,
-          totalCustomers: uniqueCustomers,
-          averageRating: 4.8, // Could be calculated from reviews if available
-          recentBookings,
-          upcomingInstances: formattedUpcoming
-        });
-
-      } catch (err: any) {
-        console.error('Error loading dashboard data:', err);
-        setError(err.message || 'Failed to load dashboard data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadDashboardData();
-  }, [tenant?.id, getProducts, supabase]);
+  const { tenant } = useTenant();
+  const { metrics, loading: isLoading, error, tenantLoading } = useDashboardData();
 
   if (tenantLoading || isLoading) {
     return (
@@ -415,4 +274,4 @@ export default function TenantDashboard() {
       </Card>
     </div>
   );
-} 
+}

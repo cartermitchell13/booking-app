@@ -10,7 +10,8 @@ import { supabase } from './supabase';
 export const uploadImageToStorage = async (
   file: File, 
   path: string = 'products/', 
-  bucket: string = 'tenant-assets'
+  bucket: string = 'tenant-assets',
+  supabaseClient = supabase
 ): Promise<string> => {
   try {
     console.log('🔍 DEBUG: Starting uploadImageToStorage');
@@ -26,9 +27,22 @@ export const uploadImageToStorage = async (
     
     // Upload the file to Supabase Storage with timeout
     console.log('🔍 DEBUG: Starting Supabase storage upload...');
+    console.log('🔍 DEBUG: Supabase client available:', !!supabase);
+    console.log('🔍 DEBUG: Supabase storage available:', !!supabase?.storage);
     
-    // Create upload promise
-    const uploadPromise = supabase
+    // First, let's check if the bucket exists and is accessible
+    try {
+      const { data: buckets, error: bucketsError } = await supabaseClient.storage.listBuckets();
+      console.log('🔍 DEBUG: Available buckets:', buckets?.map(b => b.name));
+      if (bucketsError) {
+        console.error('🔍 DEBUG: Error listing buckets:', bucketsError);
+      }
+    } catch (bucketCheckError) {
+      console.error('🔍 DEBUG: Failed to check buckets:', bucketCheckError);
+    }
+    
+    // Create upload promise with more aggressive timeout
+    const uploadPromise = supabaseClient
       .storage
       .from(bucket)
       .upload(uniqueFileName, file, {
@@ -36,28 +50,43 @@ export const uploadImageToStorage = async (
         upsert: false
       });
     
-    // Create timeout promise
+    // Create timeout promise (reduced to 15 seconds)
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => {
-        reject(new Error('Upload timeout after 30 seconds'));
-      }, 30000);
+        console.log('🚨 DEBUG: Upload timeout triggered after 15 seconds');
+        reject(new Error('Upload timeout after 15 seconds'));
+      }, 15000);
     });
     
+    // Add immediate timeout check
+    const immediateTimeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        console.log('🚨 DEBUG: Immediate timeout check - upload still pending');
+      }, 5000);
+    });
+    
+    console.log('🔍 DEBUG: Starting Promise.race with 15s timeout...');
+    
     // Race between upload and timeout
-    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as any;
+    const result = await Promise.race([uploadPromise, timeoutPromise]);
+    const { data, error } = result as any;
     
     console.log('🔍 DEBUG: Supabase upload completed');
     console.log('🔍 DEBUG: Upload data:', data);
     console.log('🔍 DEBUG: Upload error:', error);
     
     if (error) {
-      console.error('Error uploading file to storage:', error);
+      console.error('🚨 DEBUG: Detailed upload error:');
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Error details:', error.details);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
       throw error;
     }
     
     // Generate a public URL for the uploaded file
     console.log('🔍 DEBUG: Generating public URL...');
-    const { data: urlData } = supabase
+    const { data: urlData } = supabaseClient
       .storage
       .from(bucket)
       .getPublicUrl(uniqueFileName);
@@ -82,7 +111,8 @@ export const uploadDataUrlToStorage = async (
   dataUrl: string,
   fileName: string,
   path: string = 'products/',
-  bucket: string = 'tenant-assets'
+  bucket: string = 'tenant-assets',
+  supabaseClient = supabase
 ): Promise<string> => {
   try {
     console.log('Starting data URL conversion process');
@@ -114,7 +144,7 @@ export const uploadDataUrlToStorage = async (
     console.log('Created file object, size:', file.size, 'bytes');
     
     // Use the regular upload function
-    return uploadImageToStorage(file, path, bucket);
+    return uploadImageToStorage(file, path, bucket, supabaseClient);
   } catch (error) {
     console.error('Error in uploadDataUrlToStorage:', error);
     throw error;

@@ -16,7 +16,8 @@ export const BusinessTypeSchema = z.object({
 
 export const BasicInfoSchema = z.object({
   name: z.string().min(1, 'Offering name is required').max(100, 'Name must be less than 100 characters'),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(2000, 'Description must be less than 2000 characters'),
+  description: z.string().min(10, 'Description must be at least 10 characters').max(2000, 'Description must be less than 2000 characters').optional(),
+  rich_content: z.string().min(10, 'Rich content must be at least 10 characters').optional(),
   location: z.string().min(1, 'Location is required'),
   category: z.string().min(1, 'Category is required'),
   duration: z.number().min(1, 'Duration must be at least 1 minute').max(10080, 'Duration cannot exceed 7 days'),
@@ -108,7 +109,7 @@ export const MediaSchema = z.object({
 export const OfferingFormSchema = z.object({
   businessType: BusinessTypeSchema,
   basicInfo: BasicInfoSchema,
-  productConfig: z.record(z.any()).optional(), // Dynamic based on product type
+  productConfig: z.record(z.string(), z.any()).optional(), // Dynamic based on product type
   scheduling: SchedulingSchema,
   pricing: PricingSchema,
   media: MediaSchema,

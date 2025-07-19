@@ -64,7 +64,7 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
     const productData: ProductData = {
       tenant_id: tenant?.id,
       name: basicInfo.name || 'Untitled Offering',
-      description: basicInfo.description || '',
+      description: basicInfo.rich_content || basicInfo.description || '',
       product_type: formData.productType || 'open',
       status,
       location: basicInfo.location || '',
@@ -81,6 +81,13 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
         difficulty_level: basicInfo.difficultyLevel || 'beginner',
         min_age: basicInfo.minAge || 0,
         max_group_size: basicInfo.maxGroupSize || 50,
+        // Rich content editor field (new approach)
+        rich_content: basicInfo.rich_content || '',
+        // Legacy structured fields for backward compatibility
+        highlights: basicInfo.highlights || [],
+        what_included: basicInfo.included_items || [],
+        not_included: basicInfo.excluded_items || [],
+        requirements: basicInfo.requirements || [],
         // Media gallery - since there's no media_gallery column, store in product_data
         media_gallery: {
           images: media.images || [],
@@ -147,7 +154,8 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
             firstImage,
             'product-image-' + Date.now(),
             `products/${tenant.id}/`,
-            'tenant-assets'
+            'tenant-assets',
+            supabase // Using tenant-specific authenticated client
           );
           console.log('✅ String image uploaded successfully');
           resolve(url);
@@ -163,7 +171,8 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
               url,
               'product-image-' + Date.now(),
               `products/${tenant.id}/`,
-              'tenant-assets'
+              'tenant-assets',
+              supabase // Using tenant-specific authenticated client
             );
             console.log('✅ Object image uploaded successfully');
             resolve(uploadedUrl);
@@ -180,17 +189,17 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
         resolve(null);
       } catch (error) {
         console.error('❌ Failed to upload image:', error);
-        // Don't reject as we want to continue with publishing
-        resolve(null);
+        // Reject to stop publishing process
+        reject(error);
       }
     });
     
-    // Set a 30-second timeout to prevent hanging indefinitely
-    const timeoutPromise = new Promise<string | null>((resolve) => {
+    // Set a 15-second timeout to prevent hanging indefinitely
+    const timeoutPromise = new Promise<string | null>((_, reject) => {
       setTimeout(() => {
-        console.warn('⚠️ Image upload timed out after 30 seconds');
-        resolve(null);
-      }, 30000); // 30 seconds timeout
+        console.warn('⚠️ Image upload timed out after 15 seconds');
+        reject(new Error('Image upload timed out after 15 seconds'));
+      }, 15000); // 15 seconds timeout
     });
     
     // Return the first promise to resolve (either upload completes or timeout)
@@ -286,30 +295,16 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
 
       if (error) throw error;
       
-      // Create initial product instances if scheduling data exists
-      console.log('🔍 DEBUG: Checking if product instances need to be created');
+      // Create product instances based on scheduling data
+      console.log('🔍 DEBUG: Creating product instances');
       console.log('🔍 DEBUG: Schedule type:', formData.scheduling?.scheduleType);
-      console.log('🔍 DEBUG: Has recurring pattern:', !!formData.scheduling?.recurringPattern);
       
-      if (formData.scheduling.scheduleType === 'fixed' && formData.scheduling.recurringPattern) {
-        console.log('🔍 DEBUG: Generating product instances');
-        // Generate instances based on recurring pattern
-        const instances = generateProductInstances(data.id, formData.scheduling);
-        console.log('🔍 DEBUG: Generated instances count:', instances.length);
-        
-        if (instances.length > 0) {
-          console.log('🔍 DEBUG: Inserting product instances');
-          const { error: instanceError } = await supabase
-            .from('product_instances')
-            .insert(instances);
-            
-          if (instanceError) {
-            console.warn('Failed to create product instances:', instanceError);
-            // Continue anyway, the main product was created
-          } else {
-            console.log('🔍 DEBUG: Product instances created successfully');
-          }
-        }
+      try {
+        await createProductInstances(data.id, formData.scheduling, tenant.id, supabase);
+        console.log('🔍 DEBUG: Product instances created successfully');
+      } catch (instanceError) {
+        console.warn('Failed to create product instances:', instanceError);
+        // Continue anyway, the main product was created
       }
       
       // Clear localStorage draft
@@ -369,28 +364,37 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
       const imageUrl = await uploadProductImage(images);
       
       // 2. Transform form data to database structure
-      const product = transformFormDataToProduct(formData, 'scheduled');
+      const productData = transformFormDataToProduct(formData, 'scheduled');
       
       // 3. Set the image_url to the uploaded image's public URL
       if (imageUrl) {
-        product.image_url = imageUrl;
+        productData.image_url = imageUrl;
       }
       
       // 4. Add publish date for scheduled publishing
-      product.publish_at = new Date(scheduledDate).toISOString();
+      productData.publish_at = new Date(scheduledDate).toISOString();
 
-      const { data, error } = await supabase
+      // Insert the product into the database
+      const { data: createdProduct, error: insertError } = await supabase
         .from('products')
-        .insert(product)
-        .select('id')
+        .insert(productData)
+        .select()
         .single();
 
-      if (error) throw error;
+      if (insertError) {
+        console.error('Error inserting product:', insertError);
+        throw insertError;
+      }
 
+      console.log('Product created successfully:', createdProduct);
+      
+      // Create product instances based on scheduling data
+      await createProductInstances(createdProduct.id, formData.scheduling, tenant.id, supabase);
+      
       // Clear localStorage draft
       localStorage.removeItem('offering-form-draft');
 
-      return { success: true, productId: data.id };
+      return { success: true, productId: createdProduct.id };
     } catch (error: any) {
       console.error('Error scheduling offering:', error);
       
@@ -506,30 +510,153 @@ export function useOfferingPublishing(): UseOfferingPublishingReturn {
   };
 }
 
-// Helper function to generate product instances
-function generateProductInstances(productId: string, scheduling: any) {
-  const instances = [];
-  const startDate = new Date();
-  const endDate = new Date();
-  endDate.setMonth(endDate.getMonth() + 3); // Generate 3 months of instances
+// Define the product instance interface
+interface ProductInstance {
+  tenant_id: string;
+  product_id: string;
+  start_time: string;
+  end_time: string;
+  max_quantity: number;
+  available_quantity: number;
+  status: string;
+}
 
-  // This is a simplified version - you'd want more sophisticated scheduling logic
-  if (scheduling.recurringPattern?.frequency === 'weekly') {
-    const daysOfWeek = scheduling.recurringPattern.daysOfWeek || [1]; // Default to Monday
+// Helper function to create product instances based on scheduling data
+async function createProductInstances(productId: string, scheduling: any, tenantId: string, supabase: any) {
+  const instances = generateProductInstancesData(productId, scheduling, tenantId);
+  
+  if (instances.length === 0) {
+    console.log('No product instances to create');
+    return;
+  }
+  
+  console.log(`Creating ${instances.length} product instances for product ${productId}`);
+  
+  // Insert instances into the database
+  const { error: instanceError } = await supabase
+    .from('product_instances')
+    .insert(instances);
     
-    for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-      if (daysOfWeek.includes(date.getDay())) {
-        instances.push({
-          product_id: productId,
-          start_time: new Date(date.setHours(9, 0, 0, 0)).toISOString(), // 9 AM
-          end_time: new Date(date.setHours(17, 0, 0, 0)).toISOString(), // 5 PM
-          max_quantity: 24, // Default capacity
-          available_quantity: 24,
-          status: 'active',
+  if (instanceError) {
+    console.error('Failed to create product instances:', instanceError);
+    throw instanceError;
+  }
+  
+  console.log('Product instances created successfully');
+}
+
+// Helper function to generate product instances data
+function generateProductInstancesData(productId: string, scheduling: any, tenantId: string): ProductInstance[] {
+  const instances: ProductInstance[] = [];
+  const today = new Date();
+  const defaultCapacity = 20; // Default capacity for instances
+  
+  console.log('Generating product instances for schedule type:', scheduling?.scheduleType);
+  console.log('Scheduling data:', JSON.stringify(scheduling, null, 2));
+  
+  if (!scheduling) {
+    console.log('No scheduling data provided');
+    return instances;
+  }
+  
+  switch (scheduling.scheduleType) {
+    case 'fixed':
+      // Handle fixed dates - look for specific dates in the scheduling data
+      if (scheduling.fixedDates && Array.isArray(scheduling.fixedDates)) {
+        scheduling.fixedDates.forEach((dateInfo: any) => {
+          const startTime = new Date(dateInfo.date);
+          const endTime = new Date(startTime);
+          
+          // Set time if provided, otherwise default to 9 AM - 5 PM
+          if (dateInfo.startTime) {
+            const [hours, minutes] = dateInfo.startTime.split(':');
+            startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          } else {
+            startTime.setHours(9, 0, 0, 0);
+          }
+          
+          if (dateInfo.endTime) {
+            const [hours, minutes] = dateInfo.endTime.split(':');
+            endTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          } else {
+            endTime.setHours(17, 0, 0, 0);
+          }
+          
+          instances.push({
+            tenant_id: tenantId,
+            product_id: productId,
+            start_time: startTime.toISOString(),
+            end_time: endTime.toISOString(),
+            max_quantity: dateInfo.capacity || defaultCapacity,
+            available_quantity: dateInfo.capacity || defaultCapacity,
+            status: 'active'
+          });
         });
       }
-    }
+      break;
+      
+    case 'recurring':
+      // Handle recurring patterns
+      if (scheduling.recurringPattern) {
+        const pattern = scheduling.recurringPattern;
+        const startDate = pattern.startDate ? new Date(pattern.startDate) : new Date();
+        const endDate = pattern.endDate ? new Date(pattern.endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 3 months default
+        
+        if (pattern.frequency === 'weekly' && pattern.daysOfWeek) {
+          // Generate weekly recurring instances
+          for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+            if (pattern.daysOfWeek.includes(date.getDay())) {
+              const startTime = new Date(date);
+              const endTime = new Date(date);
+              
+              // Set default times or use provided times
+              startTime.setHours(pattern.startHour || 9, pattern.startMinute || 0, 0, 0);
+              endTime.setHours(pattern.endHour || 17, pattern.endMinute || 0, 0, 0);
+              
+              instances.push({
+                tenant_id: tenantId,
+                product_id: productId,
+                start_time: startTime.toISOString(),
+                end_time: endTime.toISOString(),
+                max_quantity: pattern.capacity || defaultCapacity,
+                available_quantity: pattern.capacity || defaultCapacity,
+                status: 'active'
+              });
+            }
+          }
+        } else if (pattern.frequency === 'daily') {
+          // Generate daily recurring instances
+          for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + (pattern.interval || 1))) {
+            const startTime = new Date(date);
+            const endTime = new Date(date);
+            
+            startTime.setHours(pattern.startHour || 9, pattern.startMinute || 0, 0, 0);
+            endTime.setHours(pattern.endHour || 17, pattern.endMinute || 0, 0, 0);
+            
+            instances.push({
+              tenant_id: tenantId,
+              product_id: productId,
+              start_time: startTime.toISOString(),
+              end_time: endTime.toISOString(),
+              max_quantity: pattern.capacity || defaultCapacity,
+              available_quantity: pattern.capacity || defaultCapacity,
+              status: 'active'
+            });
+          }
+        }
+      }
+      break;
+      
+    case 'on-demand':
+      // For on-demand, we might not create specific instances
+      // or create a single "always available" instance
+      console.log('On-demand scheduling - no specific instances created');
+      break;
+      
+    default:
+      console.log('Unknown schedule type:', scheduling.scheduleType);
   }
-
+  
+  console.log(`Generated ${instances.length} product instances`);
   return instances;
 }

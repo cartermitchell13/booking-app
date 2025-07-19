@@ -16,6 +16,13 @@ export interface OfferingFormData {
     minAge: number;
     maxGroupSize?: number;
     tags?: string[];
+    // Rich content editor field
+    rich_content?: string;
+    // Legacy structured fields for backward compatibility
+    highlights?: string[];
+    included_items?: string[];
+    excluded_items?: string[];
+    requirements?: string[];
   };
   productConfig: Record<string, any>;
   scheduling: {
@@ -161,7 +168,7 @@ const defaultFormValues: Partial<OfferingFormData> = {
 export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 30000, enabled: true }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const autoSaveRef = useRef<NodeJS.Timeout>();
+  const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
   const { tenant } = useTenant();
   const { supabase } = useTenantSupabase();
   
@@ -238,22 +245,30 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
     console.log('DEBUG-INIT: SessionStorage content:', sessionStorage.getItem('loadDraft'));
     
     // If 'new' parameter is present and we haven't initialized yet, clear localStorage and start fresh
+    // But only if we don't already have meaningful form data (to avoid clearing during step navigation)
     if (isNewOffering && !hasInitialized) {
-      console.log('DEBUG-INIT: New offering detected, clearing localStorage and starting fresh');
+      const hasExistingData = formData.businessType || formData.productType || formData.basicInfo?.name;
       
-      localStorage.removeItem('offering-form-draft');
-      sessionStorage.removeItem('loadDraft');
-      setFormData(defaultFormValues);
-      
-      // Only reset to step 1 if no specific step is requested in URL
-      if (!searchParams.get('step')) {
-        setCurrentStep(1);
+      if (!hasExistingData) {
+        console.log('DEBUG-INIT: New offering detected, clearing localStorage and starting fresh');
+        
+        localStorage.removeItem('offering-form-draft');
+        sessionStorage.removeItem('loadDraft');
+        setFormData(defaultFormValues);
+        
+        // Only reset to step 1 if no specific step is requested in URL
+        if (!searchParams.get('step')) {
+          setCurrentStep(1);
+        }
+        
+        setStepStatus({});
+        setErrors({});
+        setIsDirty(false);
+        setIsDraftLoaded(false);
+      } else {
+        console.log('DEBUG-INIT: New offering param detected but form has data, keeping existing data');
       }
       
-      setStepStatus({});
-      setErrors({});
-      setIsDirty(false);
-      setIsDraftLoaded(false);
       setHasInitialized(true);
       return;
     }
@@ -615,7 +630,11 @@ export function useOfferingForm(autoSaveConfig: AutoSaveConfig = { interval: 300
           stepErrors.push('Offering name is required');
           isValid = false;
         }
-        if (!formData.basicInfo?.description || formData.basicInfo.description.length < 10) {
+        // Check rich_content first, fallback to description for backward compatibility
+        const content = formData.basicInfo?.rich_content || formData.basicInfo?.description || '';
+        // Strip HTML tags for length validation
+        const textContent = content.replace(/<[^>]*>/g, '').trim();
+        if (!content || textContent.length < 10) {
           stepErrors.push('Description must be at least 10 characters');
           isValid = false;
         }

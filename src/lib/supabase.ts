@@ -13,9 +13,9 @@ console.log('[Supabase] Initializing client with URL:', supabaseUrl);
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true, // ✅ Enable session persistence for authentication
-    autoRefreshToken: true,
-    detectSessionInUrl: true
+    autoRefreshToken: false,
+    persistSession: true,
+    detectSessionInUrl: false,
   },
   global: {
     headers: {

@@ -242,16 +242,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          const userData = await fetchUserData(session.user);
-          setUser(userData);
-        } else {
-          setUser(null);
+      async (event, newSession) => {
+        // Only update if the user's authentication status has actually changed.
+        // This prevents re-renders on window focus or token refresh events.
+        const currentAuthUser = session?.user?.id;
+        const newAuthUser = newSession?.user?.id;
+
+        if (currentAuthUser !== newAuthUser) {
+          console.log('Auth state changed:', { event, newAuthUser });
+          setSession(newSession);
+
+          if (newSession?.user) {
+            const userData = await fetchUserData(newSession.user);
+            setUser(userData);
+          } else {
+            setUser(null);
+          }
         }
-        
+
         setIsLoading(false);
       }
     );

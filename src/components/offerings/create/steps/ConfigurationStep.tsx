@@ -15,6 +15,11 @@ export const ConfigurationStep: React.FC<StepComponentProps> = ({ formData, upda
   const productType = formData.productType;
   const config = formData.productConfig || {};
 
+  // If no product type is selected, show a message to go back to step 1
+  if (!productType) {
+    console.log('ConfigurationStep: No product type selected, formData:', formData);
+  }
+
   const updateConfig = (field: string, value: any) => {
     updateFormData('productConfig', {
       ...config,
@@ -42,7 +47,15 @@ export const ConfigurationStep: React.FC<StepComponentProps> = ({ formData, upda
       {!productType && (
         <div className="text-center py-12">
           <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-          <p className="text-gray-600">Please select a product type in Step 1 to configure your offering.</p>
+          <div className="space-y-4">
+            <p className="text-gray-600">Please select a product type in Step 1 to configure your offering.</p>
+            <button
+              onClick={() => window.location.href = '/dashboard/offerings/create?step=1'}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              Go to Step 1
+            </button>
+          </div>
         </div>
       )}
     </div>

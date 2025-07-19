@@ -104,7 +104,11 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
       errors.push({ section: 'Basic Info', message: 'Offering name is required' });
     }
     
-    if (!formData.basicInfo?.description) {
+    // Check rich_content first, fallback to description for backward compatibility
+    const content = formData.basicInfo?.rich_content || formData.basicInfo?.description || '';
+    // Strip HTML tags for validation
+    const textContent = content.replace(/<[^>]*>/g, '').trim();
+    if (!content || textContent.length < 10) {
       errors.push({ section: 'Basic Info', message: 'Description is required' });
     }
     

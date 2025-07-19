@@ -305,9 +305,13 @@ export default function TripDetailPage() {
                 </div>
               </div>
 
-              <p className="text-lg leading-relaxed" style={{ color: branding.textOnForeground }}>
-                {trip.description || "Experience the beauty of nature with our expertly guided adventure tour. Discover breathtaking landscapes, learn about local wildlife, and create memories that will last a lifetime."}
-              </p>
+              <div 
+                className="text-lg leading-relaxed prose prose-lg max-w-none" 
+                style={{ color: branding.textOnForeground }}
+                dangerouslySetInnerHTML={{
+                  __html: trip.description || "Experience the beauty of nature with our expertly guided adventure tour. Discover breathtaking landscapes, learn about local wildlife, and create memories that will last a lifetime."
+                }}
+              />
             </div>
 
             {/* Highlights */}

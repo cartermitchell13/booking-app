@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     const {
       tenant_id,
       product_id, // Using products system
+      product_instance_id, // Selected date instance
       user_id, // Optional for guest bookings
       customer_email, // Add this
       customer_name, // Add this
@@ -30,7 +31,11 @@ export async function POST(request: NextRequest) {
       passenger_details = [],
       total_amount,
       special_requests,
-      payment_intent_id
+      payment_intent_id,
+      // Date selection fields
+      selected_date,
+      selected_time,
+      departure_datetime
     } = body;
 
     // Determine customer email and name, prioritizing guest details if available
@@ -105,6 +110,7 @@ export async function POST(request: NextRequest) {
     const bookingData = {
       tenant_id,
       product_id,
+      product_instance_id: product_instance_id || null,
       user_id: user_id || null,
       booking_reference,
       passenger_count_adult,
@@ -115,6 +121,10 @@ export async function POST(request: NextRequest) {
       payment_intent_id: payment_intent_id || null,
       status: 'confirmed',
       special_requests: special_requests || null,
+      // Date information
+      selected_date: selected_date || null,
+      selected_time: selected_time || null,
+      departure_datetime: departure_datetime || null,
     };
 
     console.log('=== ATTEMPTING TO CREATE BOOKING ===');
@@ -143,29 +153,81 @@ export async function POST(request: NextRequest) {
     console.log('Booking created successfully:', booking);
 
     // Update product instance availability after successful booking
-    // For now, we'll update the first available instance
-    // TODO: Implement proper instance selection logic
-    const { data: instances, error: instancesError } = await supabase
-      .from('product_instances')
-      .select('id, available_quantity')
-      .eq('product_id', product_id)
-      .eq('tenant_id', tenant_id)
-      .gt('available_quantity', 0)
-      .order('start_time', { ascending: true })
-      .limit(1);
-
-    if (!instancesError && instances && instances.length > 0) {
-      const instance = instances[0];
-      const { error: updateError } = await supabase
+    console.log('=== UPDATING SEAT AVAILABILITY ===');
+    console.log('Product instance ID:', product_instance_id);
+    console.log('Total requested seats:', totalRequested);
+    
+    if (product_instance_id) {
+      // Update the specific selected product instance
+      const { data: specificInstance, error: specificInstanceError } = await supabase
         .from('product_instances')
-        .update({
-          available_quantity: Math.max(0, instance.available_quantity - totalRequested)
-        })
-        .eq('id', instance.id);
+        .select('id, available_quantity, max_quantity')
+        .eq('id', product_instance_id)
+        .eq('product_id', product_id)
+        .eq('tenant_id', tenant_id)
+        .single();
 
-      if (updateError) {
-        console.error('Error updating product instance availability:', updateError);
-        // Don't fail the booking, just log the error
+      if (!specificInstanceError && specificInstance) {
+        console.log('Found specific instance:', specificInstance);
+        
+        // Check if enough seats are available for this specific instance
+        if (specificInstance.available_quantity < totalRequested) {
+          return NextResponse.json(
+            { error: `Only ${specificInstance.available_quantity} seats available for selected date, but ${totalRequested} requested` },
+            { status: 400 }
+          );
+        }
+
+        // Update the specific instance availability
+        const { error: updateError } = await supabase
+          .from('product_instances')
+          .update({
+            available_quantity: Math.max(0, specificInstance.available_quantity - totalRequested)
+          })
+          .eq('id', product_instance_id);
+
+        if (updateError) {
+          console.error('Error updating specific product instance availability:', updateError);
+          return NextResponse.json(
+            { error: 'Failed to update seat availability for selected date' },
+            { status: 500 }
+          );
+        }
+        
+        console.log(`Updated instance ${product_instance_id}: ${specificInstance.available_quantity} -> ${specificInstance.available_quantity - totalRequested}`);
+      } else {
+        console.error('Selected product instance not found:', specificInstanceError);
+        return NextResponse.json(
+          { error: 'Selected date is no longer available' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Fallback: Update the first available instance (for backward compatibility)
+      const { data: instances, error: instancesError } = await supabase
+        .from('product_instances')
+        .select('id, available_quantity')
+        .eq('product_id', product_id)
+        .eq('tenant_id', tenant_id)
+        .gt('available_quantity', 0)
+        .order('start_time', { ascending: true })
+        .limit(1);
+
+      if (!instancesError && instances && instances.length > 0) {
+        const instance = instances[0];
+        const { error: updateError } = await supabase
+          .from('product_instances')
+          .update({
+            available_quantity: Math.max(0, instance.available_quantity - totalRequested)
+          })
+          .eq('id', instance.id);
+
+        if (updateError) {
+          console.error('Error updating product instance availability:', updateError);
+          // Don't fail the booking, just log the error
+        }
+        
+        console.log(`Updated fallback instance ${instance.id}: availability reduced by ${totalRequested}`);
       }
     }
 
@@ -184,7 +246,11 @@ export async function POST(request: NextRequest) {
         passenger_count_child: booking.passenger_count_child,
         total_amount: booking.total_amount,
         status: booking.status,
-        created_at: booking.created_at
+        created_at: booking.created_at,
+        // Include selected date information
+        selected_date: booking.selected_date,
+        selected_time: booking.selected_time,
+        departure_datetime: booking.departure_datetime
       };
 
       console.log('Email payload:', JSON.stringify(emailPayload, null, 2));

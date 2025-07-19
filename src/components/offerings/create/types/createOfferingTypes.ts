@@ -51,6 +51,13 @@ export interface OfferingFormData {
     minAge: number;
     maxGroupSize?: number;
     tags?: string[];
+    // Rich content editor field
+    rich_content?: string;
+    // Legacy structured fields (for backward compatibility)
+    highlights?: string[];
+    included_items?: string[];
+    excluded_items?: string[];
+    requirements?: string[];
   };
   productConfig: Record<string, any>;
   scheduling: {
@@ -141,6 +148,13 @@ export interface BasicInfo {
   minAge?: number;
   maxGroupSize?: number;
   tags?: string[];
+  // Rich content editor field
+  rich_content?: string;
+  // Legacy structured fields (for backward compatibility)
+  highlights?: string[];
+  included_items?: string[];
+  excluded_items?: string[];
+  requirements?: string[];
 }
 
 export interface ProductConfig {

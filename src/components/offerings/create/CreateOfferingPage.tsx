@@ -66,7 +66,11 @@ export const CreateOfferingPage: React.FC = () => {
         if (!formData.basicInfo?.name) {
           errors.name = 'Offering name is required';
         }
-        if (!formData.basicInfo?.description || formData.basicInfo.description.length < 10) {
+        // Check rich_content first, fallback to description for backward compatibility
+        const content = formData.basicInfo?.rich_content || formData.basicInfo?.description || '';
+        // Strip HTML tags for length validation
+        const textContent = content.replace(/<[^>]*>/g, '').trim();
+        if (!content || textContent.length < 10) {
           errors.description = 'Description must be at least 10 characters';
         }
         if (!formData.basicInfo?.location) {

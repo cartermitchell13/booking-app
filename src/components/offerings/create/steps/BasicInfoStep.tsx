@@ -1,6 +1,8 @@
-import React from 'react';
-import { AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertCircle, Plus, X, Check, Minus } from 'lucide-react';
 import { StepComponentProps } from '../types/createOfferingTypes';
+import { RichContentEditor } from '../components/RichContentEditor';
+import { ContentTemplate } from '../components/ContentTemplate';
 
 export const BasicInfoStep: React.FC<StepComponentProps> = ({ formData, updateFormData, errors }) => {
   const getFieldError = (fieldName: string) => {
@@ -155,18 +157,36 @@ export const BasicInfoStep: React.FC<StepComponentProps> = ({ formData, updateFo
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-4">
           Description *
         </label>
-        <textarea
-          value={formData.basicInfo?.description || ''}
-          onChange={(e) => updateFormData('basicInfo', { ...formData.basicInfo, description: e.target.value })}
-          rows={4}
-          className={getFieldClassName('description')}
-          placeholder="Describe your offering in detail..."
+        
+        {/* Content Templates */}
+        <ContentTemplate 
+          onUseTemplate={(template) => {
+            updateFormData('basicInfo', { 
+              ...formData.basicInfo, 
+              rich_content: template 
+            });
+          }}
         />
+        
+        {/* Rich Content Editor */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+          <RichContentEditor
+            content={formData.basicInfo?.rich_content || ''}
+            onChange={(content) => {
+              updateFormData('basicInfo', { 
+                ...formData.basicInfo, 
+                rich_content: content 
+              });
+            }}
+            placeholder="Describe your offering in detail... Use formatting, headers, and lists to make it engaging!"
+          />
+        </div>
+        
         {getFieldError('description') && (
-          <div className="mt-1 flex items-center text-red-600 text-sm">
+          <div className="mt-3 flex items-center text-red-600 text-sm">
             <AlertCircle className="w-4 h-4 mr-1 flex-shrink-0" />
             {getFieldError('description')}
           </div>
@@ -191,6 +211,123 @@ export const BasicInfoStep: React.FC<StepComponentProps> = ({ formData, updateFo
             {getFieldError('maxGroupSize')}
           </div>
         )}
+      </div>
+
+      {/* Tags Section */}
+      <div className="mt-8">
+
+        {/* Tags Section */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+              <span className="text-purple-600 text-lg">#</span>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900">Tags</h4>
+              <p className="text-sm text-gray-500">Help customers discover your experience</p>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            {/* Current Tags */}
+            {(formData.basicInfo?.tags || []).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {(formData.basicInfo?.tags || []).map((tag, index) => (
+                  <span
+                    key={index}
+                    className="group inline-flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-full font-medium hover:bg-purple-200 transition-colors"
+                  >
+                    <span className="text-purple-600">#</span>
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newTags = [...(formData.basicInfo?.tags || [])];
+                        newTags.splice(index, 1);
+                        updateFormData('basicInfo', { ...formData.basicInfo, tags: newTags });
+                      }}
+                      className="text-purple-600 hover:text-purple-800 opacity-70 group-hover:opacity-100 transition-all"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            
+            {/* Empty State */}
+            {(formData.basicInfo?.tags || []).length === 0 && (
+              <div className="text-center py-6 text-gray-500">
+                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <span className="text-gray-400 text-lg">#</span>
+                </div>
+                <p className="text-sm text-gray-400">No tags added yet</p>
+              </div>
+            )}
+            
+            {/* Add Tag Input */}
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-500 font-medium">#</span>
+                <input
+                  type="text"
+                  placeholder="adventure, family-friendly, photography..."
+                  className="w-full pl-8 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-gray-50 focus:bg-white transition-colors"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const input = e.target as HTMLInputElement;
+                      const tag = input.value.trim().toLowerCase();
+                      if (tag && !(formData.basicInfo?.tags || []).includes(tag)) {
+                        const newTags = [...(formData.basicInfo?.tags || []), tag];
+                        updateFormData('basicInfo', { ...formData.basicInfo, tags: newTags });
+                        input.value = '';
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  const input = (e.target as HTMLButtonElement).previousElementSibling?.querySelector('input') as HTMLInputElement;
+                  const tag = input.value.trim().toLowerCase();
+                  if (tag && !(formData.basicInfo?.tags || []).includes(tag)) {
+                    const newTags = [...(formData.basicInfo?.tags || []), tag];
+                    updateFormData('basicInfo', { ...formData.basicInfo, tags: newTags });
+                    input.value = '';
+                  }
+                }}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              >
+                Add Tag
+              </button>
+            </div>
+            
+            {/* Popular Tags Suggestions */}
+            <div className="border-t pt-4">
+              <p className="text-xs text-gray-500 mb-3">Popular tags:</p>
+              <div className="flex flex-wrap gap-2">
+                {['adventure', 'family-friendly', 'photography', 'nature', 'cultural', 'food', 'wildlife', 'scenic'].map((suggestedTag) => (
+                  <button
+                    key={suggestedTag}
+                    type="button"
+                    onClick={() => {
+                      if (!(formData.basicInfo?.tags || []).includes(suggestedTag)) {
+                        const newTags = [...(formData.basicInfo?.tags || []), suggestedTag];
+                        updateFormData('basicInfo', { ...formData.basicInfo, tags: newTags });
+                      }
+                    }}
+                    disabled={(formData.basicInfo?.tags || []).includes(suggestedTag)}
+                    className="px-3 py-1 text-xs border border-gray-300 rounded-full text-gray-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    #{suggestedTag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
