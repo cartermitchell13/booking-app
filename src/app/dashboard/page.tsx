@@ -76,7 +76,7 @@ export default function TenantDashboard() {
             *,
             products!inner (
               name,
-              product_instances (
+              product_instances!product_instances_product_id_fkey (
                 start_time,
                 end_time
               )

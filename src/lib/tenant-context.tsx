@@ -790,7 +790,7 @@ export function useTenantSupabase() {
         .from('products')
         .select(`
           *,
-          product_instances (
+          product_instances!product_instances_product_id_fkey (
             id,
             start_time,
             end_time,
@@ -909,7 +909,7 @@ export function useTenantSupabase() {
         .from('products')
         .select(`
           *,
-          product_instances (
+          product_instances!product_instances_product_id_fkey (
             id,
             start_time,
             end_time,
