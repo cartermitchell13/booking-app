@@ -36,73 +36,143 @@
     - Add visual indicators for editable areas
     - _Requirements: 1.4, 2.6_
 
-- [ ] 3. Implement editable description section
-  - [ ] 3.1 Create rich text editor for description
+- [x] 3. Implement editable description section
+
+
+
+
+
+  - [x] 3.1 Create rich text editor for description
+
+
     - Replace static description paragraph with rich text editor
     - Implement click-to-edit functionality
     - Add formatting toolbar that appears on edit
     - _Requirements: 2.2_
 
-  - [ ] 3.2 Add auto-save for description changes
+  - [x] 3.2 Add auto-save for description changes
+
+
     - Integrate description editor with auto-save hook
     - Handle rich text content serialization
     - Provide visual feedback for save status
     - _Requirements: 3.1, 3.4_
 
-- [ ] 4. Transform image gallery to be editable
-  - [ ] 4.1 Add image upload functionality to gallery
+- [x] 4. Transform image gallery to be editable
+
+
+
+
+
+
+  - [x] 4.1 Add image upload functionality to gallery
+
+
+
+
+
+
     - Convert existing image display to editable gallery
     - Add click-to-upload functionality for new images
     - Implement drag-and-drop image reordering
     - _Requirements: 2.4_
 
-  - [ ] 4.2 Implement image management controls
+  - [x] 4.2 Implement image management controls
+
+
+
+
+
+
+
     - Add delete/replace options for existing images
     - Implement primary image selection
     - Add image alt text editing
     - _Requirements: 2.4_
 
-- [ ] 5. Make trip highlights section editable
-  - [ ] 5.1 Create editable highlights list
+- [x] 5. Make trip highlights section editable
+
+
+
+
+
+  - [x] 5.1 Create editable highlights list
+
+
     - Convert static highlights to editable list items
     - Add click-to-edit functionality for each highlight
     - Implement add/remove highlight functionality
     - _Requirements: 2.2, 4.3_
 
-  - [ ] 5.2 Make amenities section editable
+  - [x] 5.2 Make amenities section editable
+
     - Transform "What's Included" section to editable list
     - Add ability to add/remove amenities
     - Implement checkbox-style amenity selection
     - _Requirements: 4.3_
 
-- [ ] 6. Transform pricing sidebar to be editable
-  - [ ] 6.1 Make pricing values directly editable
+- [x] 6. Transform pricing sidebar to be editable
+
+
+
+
+
+  - [x] 6.1 Make pricing values directly editable
+
+
+
+
     - Convert price displays to inline editable fields
     - Add currency selection functionality
     - Implement pricing tier management
     - _Requirements: 2.3, 4.4_
 
-  - [ ] 6.2 Add advanced pricing configuration
+  - [x] 6.2 Add advanced pricing configuration
+
+
     - Create contextual panel for complex pricing settings
     - Add tax rate configuration
     - Implement group pricing and discounts
     - _Requirements: 4.1, 4.2_
 
-- [ ] 7. Implement pickup locations editing
-  - [ ] 7.1 Make pickup locations directly editable
+- [x] 7. Implement pickup locations editing
+
+
+
+
+
+  - [x] 7.1 Make pickup locations directly editable
+
+
+
     - Convert static pickup location display to editable format
     - Add click-to-edit for location names and times
     - Implement add/remove pickup location functionality
     - _Requirements: 4.3_
 
-  - [ ] 7.2 Add location selection and mapping
+  - [x] 7.2 Add location selection and mapping
+
+
+
+
+
     - Integrate location picker for pickup addresses
     - Add time picker for pickup times
     - Validate pickup location data
     - _Requirements: 2.6_
 
-- [ ] 8. Add validation and publishing integration
-  - [ ] 8.1 Implement real-time validation indicators
+- [-] 8. Add validation and publishing integration
+
+
+
+
+
+  - [x] 8.1 Implement real-time validation indicators
+
+
+
+
+
     - Add visual indicators for required fields
     - Show validation errors inline within preview
     - Highlight incomplete sections with clear visual cues
@@ -139,3 +209,27 @@
     - Add integration tests for auto-save functionality
     - Test validation and publishing workflows
     - _Requirements: 3.3, 5.1_
+
+- [ ] 11. Restructure offering creation from wizard to single editable interface
+
+
+  - [-] 11.1 Create new main EditableOfferingView component
+
+    - Build primary component that uses enhanced ReviewStep as core interface
+    - Implement single-page editing experience with real-time preview
+    - Add navigation structure for different editing modes (preview, validation, etc.)
+    - _Requirements: 1.1, 1.2, 2.1_
+
+  - [ ] 11.2 Convert wizard steps into modal components for advanced settings
+    - Transform BusinessTypeStep into initial setup modal
+    - Convert SchedulingStep into advanced scheduling modal
+    - Transform complex pricing configurations into modal panels
+    - Create SEO/metadata settings modal
+    - _Requirements: 4.1, 4.2, 5.3_
+
+  - [ ] 11.3 Update routing and navigation to use editable interface as primary
+    - Replace wizard routing with single editable interface route
+    - Update navigation to support modal-based advanced settings
+    - Implement proper state management for modal interactions
+    - Ensure proper URL handling and deep linking
+    - _Requirements: 1.3, 3.1, 5.4_

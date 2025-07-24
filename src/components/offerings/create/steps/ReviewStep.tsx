@@ -31,6 +31,15 @@ import { useOfferingPublishing } from '@/hooks/useOfferingPublishing';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { EditableText } from '@/components/ui/EditableText';
+import { EditableRichText } from '@/components/ui/EditableRichText';
+import { EditableImageGallery } from '@/components/ui/EditableImageGallery';
+import { EditableHighlights } from '@/components/ui/EditableHighlights';
+import { EditableAmenities } from '@/components/ui/EditableAmenities';
+import { EditablePricingSidebar } from '@/components/ui/EditablePricingSidebar';
+import { EditablePickupLocations } from '@/components/ui/EditablePickupLocations';
+import { ValidationIndicator, ValidationMessage, FieldValidationWrapper, SectionValidationBadge } from '@/components/ui/ValidationIndicator';
+import { ValidationOverlay, InlineValidationBanner } from '@/components/ui/ValidationOverlay';
+import { useRealTimeValidation } from '@/hooks/useRealTimeValidation';
 
 export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormData }) => {
   const router = useRouter();
@@ -52,6 +61,7 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
   const [draftName, setDraftName] = useState('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showValidationOverlay, setShowValidationOverlay] = useState(false);
   const [testPricing, setTestPricing] = useState({
     adults: 2,
     children: 0,
@@ -59,6 +69,18 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
     seniors: 0,
     groupSize: 2
   });
+
+  // Real-time validation
+  const {
+    validation,
+    sectionStatus,
+    completionPercentage,
+    isValid,
+    hasErrors,
+    hasWarnings,
+    getFieldErrors,
+    getSectionErrors
+  } = useRealTimeValidation(formData, { debounceMs: 500 });
 
   const goToStep = (stepNumber: number) => {
     // This would typically be handled by the parent component
@@ -79,68 +101,10 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
     });
   };
 
-  // Gallery navigation
-  const nextImage = () => {
-    const images = formData.media?.images || [];
-    setSelectedImageIndex((prev) => (prev + 1) % images.length);
-  };
 
-  const prevImage = () => {
-    const images = formData.media?.images || [];
-    setSelectedImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
 
-  const getValidationErrors = () => {
-    const errors: Array<{ section: string, message: string }> = [];
-
-    if (!formData.businessType) {
-      errors.push({ section: 'Business Type', message: 'Please select a business type' });
-    }
-
-    if (!formData.productType) {
-      errors.push({ section: 'Product Type', message: 'Please select a product type' });
-    }
-
-    if (!formData.basicInfo?.name) {
-      errors.push({ section: 'Basic Info', message: 'Offering name is required' });
-    }
-
-    if (!formData.basicInfo?.description) {
-      errors.push({ section: 'Basic Info', message: 'Description is required' });
-    }
-
-    if (!formData.basicInfo?.location) {
-      errors.push({ section: 'Basic Info', message: 'Location is required' });
-    }
-
-    if (!formData.scheduling?.scheduleType) {
-      errors.push({ section: 'Scheduling', message: 'Schedule type is required' });
-    }
-
-    if (!formData.scheduling?.timezone) {
-      errors.push({ section: 'Scheduling', message: 'Timezone is required' });
-    }
-
-    if (!formData.pricing?.basePricing?.adult || formData.pricing.basePricing.adult <= 0) {
-      errors.push({ section: 'Pricing', message: 'Adult pricing is required' });
-    }
-
-    if (!formData.media?.images || formData.media.images.length === 0) {
-      errors.push({ section: 'Media', message: 'At least one image is required' });
-    }
-
-    if (!formData.media?.seoData?.metaTitle) {
-      errors.push({ section: 'SEO', message: 'Meta title is required' });
-    }
-
-    if (!formData.media?.seoData?.metaDescription) {
-      errors.push({ section: 'SEO', message: 'Meta description is required' });
-    }
-
-    return errors;
-  };
-
-  const validationErrors = getValidationErrors();
+  // Use the new validation system
+  const validationErrors = validation.errors;
 
   const primaryImage = formData.media?.images?.find(img => img.isPrimary) || formData.media?.images?.[0];
 
@@ -291,6 +255,13 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
       {/* Preview Tab */}
       {activeTab === 'preview' && (
         <div className="space-y-6">
+          {/* Validation Banner */}
+          <InlineValidationBanner
+            validation={validation}
+            completionPercentage={completionPercentage}
+            onShowDetails={() => setShowValidationOverlay(true)}
+          />
+
           {/* Customer-Facing Preview */}
           <div className="min-h-screen" style={{ backgroundColor: branding.background_color || '#FFFFFF' }}>
             {/* Header */}
@@ -328,85 +299,18 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
                 <div className="lg:col-span-2 space-y-8">
 
                   {/* Image Gallery */}
-                  <div className="space-y-4">
-                    <div className="relative aspect-video rounded-2xl overflow-hidden">
-                      {formData.media?.images && formData.media.images.length > 0 ? (
-                        <Image
-                          src={formData.media.images[selectedImageIndex]?.url || ''}
-                          alt={formData.basicInfo?.name || 'Offering image'}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 50vw"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                          <ImageIcon className="w-12 h-12 text-gray-400" />
-                        </div>
-                      )}
-
-                      <button
-                        className="absolute top-4 right-4 backdrop-blur-sm rounded-lg px-3 py-2 text-sm font-medium hover:opacity-90 transition-colors"
-                        style={{
-                          backgroundColor: `${branding.foreground_color || '#FFFFFF'}CC`,
-                          color: branding.textOnForeground
-                        }}
-                      >
-                        <Camera className="w-4 h-4 inline mr-2" />
-                        View Gallery
-                      </button>
-
-                      {formData.media?.images && formData.media.images.length > 1 && (
-                        <>
-                          <button
-                            onClick={prevImage}
-                            className="absolute left-4 top-1/2 -translate-y-1/2 backdrop-blur-sm rounded-full p-2 hover:opacity-90 transition-colors"
-                            style={{
-                              backgroundColor: `${branding.foreground_color || '#FFFFFF'}CC`,
-                              color: branding.textOnForeground
-                            }}
-                          >
-                            <ChevronLeft className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={nextImage}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 backdrop-blur-sm rounded-full p-2 hover:opacity-90 transition-colors"
-                            style={{
-                              backgroundColor: `${branding.foreground_color || '#FFFFFF'}CC`,
-                              color: branding.textOnForeground
-                            }}
-                          >
-                            <ChevronRight className="w-5 h-5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Thumbnails */}
-                    {formData.media?.images && formData.media.images.length > 1 && (
-                      <div className="flex gap-2 overflow-x-auto">
-                        {formData.media.images.map((image: any, index: number) => (
-                          <button
-                            key={index}
-                            onClick={() => setSelectedImageIndex(index)}
-                            className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors"
-                            style={{
-                              borderColor: selectedImageIndex === index
-                                ? branding.primary_color || '#10B981'
-                                : '#E5E7EB'
-                            }}
-                          >
-                            <Image
-                              src={image.url}
-                              alt={image.alt || `Image ${index + 1}`}
-                              width={80}
-                              height={80}
-                              className="w-full h-full object-cover"
-                            />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <EditableImageGallery
+                    images={formData.media?.images || []}
+                    onChange={(images) => {
+                      updateFormData('media', {
+                        ...formData.media,
+                        images
+                      });
+                    }}
+                    selectedImageIndex={selectedImageIndex}
+                    onSelectedImageChange={setSelectedImageIndex}
+                    branding={branding}
+                  />
 
                   {/* Trip Info */}
                   <div
@@ -417,23 +321,29 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
                     }}
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <EditableText
-                        value={formData.basicInfo?.name || ''}
-                        onChange={(value) => {
-                          console.log('EditableText onChange called with:', value);
-                          updateFormData('basicInfo', {
-                            ...formData.basicInfo,
-                            name: value
-                          });
-                        }}
-                        placeholder="Click to add offering name"
-                        displayAs="h1"
-                        className="text-4xl font-extrabold"
-                        style={{ color: branding.textOnForeground }}
-                        autoSave={false}
-                        emptyText="Click to add offering name"
-                        showEditIcon={true}
-                      />
+                      <FieldValidationWrapper
+                        fieldPath="basicInfo.name"
+                        errors={[...validation.errors, ...validation.warnings]}
+                        showInlineError={false}
+                        className="flex-1 mr-4"
+                      >
+                        <EditableText
+                          value={formData.basicInfo?.name || ''}
+                          onChange={(value) => {
+                            updateFormData('basicInfo', {
+                              ...formData.basicInfo,
+                              name: value
+                            });
+                          }}
+                          placeholder="Click to add offering name"
+                          displayAs="h1"
+                          className="text-4xl font-extrabold"
+                          style={{ color: branding.textOnForeground }}
+                          autoSave={false}
+                          emptyText="Click to add offering name"
+                          showEditIcon={true}
+                        />
+                      </FieldValidationWrapper>
                       <div className="flex items-center space-x-4">
                         <button className="p-2 rounded-full hover:bg-gray-100">
                           <Heart className="w-6 h-6" style={{ color: branding.textOnForeground }} />
@@ -450,7 +360,12 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
                           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
                           <span>4.9 (127 reviews)</span>
                         </div>
-                        <div className="flex items-center">
+                        <FieldValidationWrapper
+                          fieldPath="basicInfo.location"
+                          errors={[...validation.errors, ...validation.warnings]}
+                          showInlineError={false}
+                          className="flex items-center"
+                        >
                           <MapPin className="w-4 h-4 mr-1" />
                           <EditableText
                             value={formData.basicInfo?.location || ''}
@@ -466,8 +381,13 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
                             emptyText="Click to add location"
                             style={{ color: branding.textOnForeground }}
                           />
-                        </div>
-                        <div className="flex items-center">
+                        </FieldValidationWrapper>
+                        <FieldValidationWrapper
+                          fieldPath="basicInfo.duration"
+                          errors={[...validation.errors, ...validation.warnings]}
+                          showInlineError={false}
+                          className="flex items-center"
+                        >
                           <Clock className="w-4 h-4 mr-1" />
                           <EditableText
                             value={formData.basicInfo?.duration?.toString() || ''}
@@ -493,13 +413,34 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
                             }}
                           />
                           <span style={{ color: branding.textOnForeground }}> min duration</span>
-                        </div>
+                        </FieldValidationWrapper>
                       </div>
                     </div>
 
-                    <p className="text-lg leading-relaxed" style={{ color: branding.textOnForeground }}>
-                      {formData.basicInfo?.description || "Experience the beauty of nature with our expertly guided adventure tour. Discover breathtaking landscapes, learn about local wildlife, and create memories that will last a lifetime."}
-                    </p>
+                    <FieldValidationWrapper
+                      fieldPath="basicInfo.description"
+                      errors={[...validation.errors, ...validation.warnings]}
+                      showInlineError={false}
+                    >
+                      <EditableRichText
+                        value={formData.basicInfo?.description || ''}
+                        onChange={(value) => {
+                          updateFormData('basicInfo', {
+                            ...formData.basicInfo,
+                            description: value
+                          });
+                        }}
+                        placeholder="Click to add description..."
+                        displayAs="div"
+                        className="text-lg leading-relaxed"
+                        style={{ color: branding.textOnForeground }}
+                        autoSave={true}
+                        saveDelay={2000}
+                        emptyText="Experience the beauty of nature with our expertly guided adventure tour. Discover breathtaking landscapes, learn about local wildlife, and create memories that will last a lifetime."
+                        showEditIcon={true}
+                        showSaveIndicator={true}
+                      />
+                    </FieldValidationWrapper>
                   </div>
 
                   {/* Highlights */}
@@ -510,153 +451,119 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
                       borderColor: branding.accent_color || '#637752'
                     }}
                   >
-                    <h2 className="text-2xl font-bold mb-4" style={{
-                      color: branding.textOnForeground,
-                      fontFamily: `var(--tenant-font, 'Inter')`
-                    }}>Trip Highlights</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {([
-                        "Guided experience with expert staff",
-                        "Scenic views and photo opportunities",
-                        "Small group experience",
-                        "All safety equipment provided",
-                        "Professional service",
-                        "Memorable adventure"
-                      ]).map((highlight: string, index: number) => (
-                        <div key={index} className="flex items-start gap-3">
-                          <CheckCircle
-                            className="w-5 h-5 flex-shrink-0 mt-0.5"
-                            style={{ color: branding.primary_color || '#10B981' }}
-                          />
-                          <span style={{ color: branding.textOnForeground }}>{highlight}</span>
-                        </div>
-                      ))}
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-2xl font-bold" style={{
+                        color: branding.textOnForeground,
+                        fontFamily: `var(--tenant-font, 'Inter')`
+                      }}>Trip Highlights</h2>
+                      <ValidationIndicator 
+                        errors={getSectionErrors('Basic Info').filter(e => e.field.includes('highlights'))} 
+                        size="sm"
+                      />
                     </div>
+                    <EditableHighlights
+                      highlights={formData.productConfig?.highlights || []}
+                      onChange={(highlights) => {
+                        updateFormData('productConfig', {
+                          ...formData.productConfig,
+                          highlights
+                        });
+                      }}
+                      branding={branding}
+                      placeholder="Add a trip highlight..."
+                      maxItems={8}
+                    />
                   </div>
 
                   {/* What's Included */}
-                  {formData.productConfig?.amenities && formData.productConfig.amenities.length > 0 && (
-                    <div
-                      className="rounded-2xl p-6 border-2"
-                      style={{
-                        backgroundColor: branding.foreground_color || '#FFFFFF',
-                        borderColor: branding.accent_color || '#637752'
-                      }}
-                    >
-                      <h2 className="text-2xl font-bold mb-4" style={{
+                  <div
+                    className="rounded-2xl p-6 border-2"
+                    style={{
+                      backgroundColor: branding.foreground_color || '#FFFFFF',
+                      borderColor: branding.accent_color || '#637752'
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-2xl font-bold" style={{
                         color: branding.textOnForeground,
                         fontFamily: `var(--tenant-font, 'Inter')`
                       }}>What's Included</h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {formData.productConfig.amenities.map((amenity: string, index: number) => (
-                          <div key={index} className="flex items-start gap-3">
-                            <CheckCircle
-                              className="w-5 h-5 flex-shrink-0 mt-0.5"
-                              style={{ color: branding.primary_color || '#10B981' }}
-                            />
-                            <span style={{ color: branding.textOnForeground }} className="capitalize">
-                              {amenity.replace(/([A-Z])/g, ' $1')}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                      <ValidationIndicator 
+                        errors={getSectionErrors('Basic Info').filter(e => e.field.includes('amenities'))} 
+                        size="sm"
+                      />
                     </div>
-                  )}
+                    <EditableAmenities
+                      amenities={formData.productConfig?.amenities || []}
+                      onChange={(amenities) => {
+                        updateFormData('productConfig', {
+                          ...formData.productConfig,
+                          amenities
+                        });
+                      }}
+                      branding={branding}
+                      placeholder="Add an included amenity..."
+                      maxItems={12}
+                    />
+                  </div>
 
                   {/* Pickup Locations */}
-                  {formData.productType === 'seat' && formData.productConfig?.pickupLocations && formData.productConfig.pickupLocations.length > 0 && (
-                    <div
-                      className="rounded-2xl p-6 border-2"
-                      style={{
-                        backgroundColor: branding.foreground_color || '#FFFFFF',
-                        borderColor: branding.accent_color || '#637752'
-                      }}
-                    >
-                      <h2 className="text-2xl font-bold mb-4" style={{
+                  <div
+                    className="rounded-2xl p-6 border-2"
+                    style={{
+                      backgroundColor: branding.foreground_color || '#FFFFFF',
+                      borderColor: branding.accent_color || '#637752'
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-2xl font-bold" style={{
                         color: branding.textOnForeground,
                         fontFamily: `var(--tenant-font, 'Inter')`
                       }}>Pickup Locations</h2>
-                      <div className="space-y-3">
-                        {formData.productConfig.pickupLocations.map((location: any, index: number) => (
-                          <div key={index} className="flex items-start gap-3">
-                            <MapPin
-                              className="w-5 h-5 flex-shrink-0 mt-0.5"
-                              style={{ color: branding.primary_color || '#10B981' }}
-                            />
-                            <div style={{ color: branding.textOnForeground }}>
-                              <div className="font-medium">{location.name}</div>
-                              <div className="text-sm opacity-75">Pickup: {location.pickupTime}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <ValidationIndicator 
+                        errors={getSectionErrors('Basic Info').filter(e => e.field.includes('pickup'))} 
+                        size="sm"
+                      />
                     </div>
-                  )}
+                    <EditablePickupLocations
+                      pickupLocations={formData.productConfig?.pickupLocations || []}
+                      onChange={(pickupLocations) => {
+                        updateFormData('productConfig', {
+                          ...formData.productConfig,
+                          pickupLocations
+                        });
+                      }}
+                      branding={branding}
+                      placeholder="Click to add pickup location"
+                      maxLocations={10}
+                    />
+                  </div>
+
 
                 </div>
 
-                {/* Booking Sidebar */}
+                {/* Editable Pricing Sidebar */}
                 <div className="lg:col-span-1">
                   <div className="sticky top-8 space-y-6">
-
-                    {/* Booking Card */}
-                    <div
-                      className="rounded-2xl p-6 border-2 shadow-lg"
-                      style={{
-                        backgroundColor: branding.foreground_color || '#FFFFFF',
-                        borderColor: branding.accent_color || '#637752'
+                    <EditablePricingSidebar
+                      pricing={formData.pricing || {
+                        basePricing: { adult: 0 },
+                        currency: 'USD',
+                        groupDiscounts: [],
+                        seasonalPricing: [],
+                        cancellationPolicy: {
+                          freeCancellationHours: 24,
+                          refundPercentage: 100,
+                          processingFee: 0
+                        },
+                        depositRequired: false,
+                        taxInclusive: false
                       }}
-                    >
-                      <div className="text-center mb-6">
-                        <div className="text-3xl font-bold mb-1" style={{ color: branding.textOnForeground }}>
-                          {formData.pricing?.currency || 'CAD'} {formData.pricing?.basePricing?.adult || '0.00'}
-                        </div>
-                        <div style={{ color: branding.textOnForeground }}>per person</div>
-                        {formData.pricing?.basePricing?.child && (
-                          <div className="text-sm mt-1" style={{ color: branding.textOnForeground }}>
-                            Children: {formData.pricing?.currency || 'CAD'} {formData.pricing?.basePricing?.child}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-4 mb-6">
-                        <div className="flex items-center justify-between text-sm">
-                          <span style={{ color: branding.textOnForeground }}>Duration:</span>
-                          <span className="font-medium" style={{ color: branding.textOnForeground }}>
-                            {formData.basicInfo?.duration || 0} minutes
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span style={{ color: branding.textOnForeground }}>Location:</span>
-                          <span className="font-medium" style={{ color: branding.textOnForeground }}>
-                            {formData.basicInfo?.location || 'TBD'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span style={{ color: branding.textOnForeground }}>Group Size:</span>
-                          <span className="font-medium" style={{ color: branding.textOnForeground }}>
-                            {getProductTypeName(formData.productType)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        className="w-full py-4 px-6 font-semibold text-lg rounded-xl transition-colors hover:opacity-90 mb-4"
-                        style={{
-                          backgroundColor: branding.primary_color || '#10B981',
-                          color: branding.textOnPrimary
-                        }}
-                      >
-                        Book This Experience
-                      </button>
-
-                      <div className="text-center text-sm" style={{ color: branding.textOnForeground }}>
-                        {(formData.pricing as any)?.freeCancellationHours && (
-                          <p>Free cancellation up to {(formData.pricing as any).freeCancellationHours} hours</p>
-                        )}
-                        <p>No booking fees • Secure payment</p>
-                      </div>
-                    </div>
+                      onChange={(pricing) => {
+                        updateFormData('pricing', pricing);
+                      }}
+                      branding={branding}
+                    />
 
                     {/* Contact Info */}
                     <div
@@ -699,60 +606,75 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
       {activeTab === 'validation' && (
         <div className="space-y-6">
           {/* Validation Summary */}
-          <div className={`p-6 rounded-lg ${validationErrors.length === 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+          <div className={`p-6 rounded-lg ${validation.isValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
             <div className="flex items-center mb-4">
-              {validationErrors.length === 0 ? (
-                <CheckCircle className="w-6 h-6 text-green-600 mr-2" />
-              ) : (
-                <AlertCircle className="w-6 h-6 text-red-600 mr-2" />
-              )}
-              <h3 className={`text-lg font-semibold ${validationErrors.length === 0 ? 'text-green-800' : 'text-red-800'}`}>
-                {validationErrors.length === 0 ? 'All Required Fields Complete' : `${validationErrors.length} Issues Found`}
-              </h3>
+              <ValidationIndicator errors={[...validation.errors, ...validation.warnings]} size="lg" />
+              <div className="ml-3">
+                <h3 className={`text-lg font-semibold ${validation.isValid ? 'text-green-800' : 'text-red-800'}`}>
+                  {validation.isValid ? 'All Required Fields Complete' : `${validation.errors.length} Issues Found`}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {completionPercentage}% complete
+                  {validation.warnings.length > 0 && ` • ${validation.warnings.length} warning${validation.warnings.length !== 1 ? 's' : ''}`}
+                </p>
+              </div>
             </div>
 
-            {validationErrors.length === 0 ? (
+            {validation.isValid ? (
               <p className="text-green-700">Your offering is ready to publish! All required fields have been completed.</p>
             ) : (
               <div className="space-y-3">
                 <p className="text-red-700">Please address the following issues before publishing:</p>
-                {validationErrors.map((error, index) => (
-                  <div key={index} className="flex items-start">
-                    <AlertCircle className="w-4 h-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <span className="font-medium text-red-800">{error.section}:</span>
-                      <span className="text-red-700 ml-1">{error.message}</span>
-                    </div>
-                  </div>
-                ))}
+                <ValidationMessage errors={validation.errors} />
+              </div>
+            )}
+
+            {validation.warnings.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-yellow-700 font-medium mb-2">Suggestions for improvement:</p>
+                <ValidationMessage errors={validation.warnings} />
               </div>
             )}
           </div>
 
-          {/* Completion Checklist */}
+          {/* Section Status */}
           <div className="bg-gray-50 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Completion Checklist</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Section Status</h3>
             <div className="space-y-3">
-              {[
-                { label: 'Business type selected', completed: !!formData.productType },
-                { label: 'Basic information provided', completed: !!(formData.basicInfo?.name && formData.basicInfo?.description && formData.basicInfo?.location && formData.basicInfo?.duration) },
-                { label: 'Product configured', completed: !!formData.productConfig },
-                { label: 'Schedule set up', completed: !!(formData.scheduling?.scheduleType && formData.scheduling?.timezone) },
-                { label: 'Pricing configured', completed: !!(formData.pricing?.basePricing?.adult && formData.pricing?.currency) },
-                { label: 'Images uploaded', completed: !!(formData.media?.images && formData.media?.images.length > 0) },
-                { label: 'SEO optimized', completed: !!(formData.media?.seoData?.metaTitle && formData.media?.seoData?.metaDescription) }
-              ].map((item, index) => (
-                <div key={index} className="flex items-center">
-                  {item.completed ? (
-                    <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
-                  ) : (
-                    <div className="w-5 h-5 border-2 border-gray-300 rounded-full mr-3"></div>
-                  )}
-                  <span className={`${item.completed ? 'text-gray-900' : 'text-gray-500'}`}>
-                    {item.label}
-                  </span>
-                </div>
-              ))}
+              {Object.entries(sectionStatus).map(([section, status]) => {
+                const sectionErrors = getSectionErrors(section);
+                return (
+                  <div key={section} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <div className="flex items-center space-x-3">
+                      <ValidationIndicator errors={sectionErrors} size="sm" />
+                      <div>
+                        <h4 className="font-medium text-gray-900">{section}</h4>
+                        <p className="text-sm text-gray-600">
+                          {status.completed}/{status.total} required fields completed
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <SectionValidationBadge
+                        sectionName={section}
+                        errors={sectionErrors}
+                        completed={status.completed}
+                        total={status.total}
+                      />
+                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            status.hasErrors ? 'bg-red-500' : 
+                            status.hasWarnings ? 'bg-yellow-500' : 
+                            'bg-green-500'
+                          }`}
+                          style={{ width: `${(status.completed / status.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1078,6 +1000,20 @@ export const ReviewStep: React.FC<StepComponentProps> = ({ formData, updateFormD
           </div>
         </div>
       </div>
+
+      {/* Validation Overlay */}
+      <ValidationOverlay
+        isVisible={showValidationOverlay}
+        onClose={() => setShowValidationOverlay(false)}
+        validation={validation}
+        sectionStatus={sectionStatus}
+        completionPercentage={completionPercentage}
+        onSectionClick={(section) => {
+          // Navigate to the appropriate tab or section
+          setShowValidationOverlay(false);
+          // Could add logic here to scroll to specific sections
+        }}
+      />
     </div>
   );
 }; 

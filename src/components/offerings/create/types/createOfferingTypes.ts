@@ -149,6 +149,7 @@ export interface ProductConfig {
   totalSeats?: number;
   accessibleSeats?: number;
   amenities?: string[];
+  highlights?: string[];
   pickupLocations?: PickupLocation[];
   routeDescription?: string;
   estimatedTravelTime?: number;
